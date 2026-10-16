@@ -1,0 +1,198 @@
+{
+ "issued": "2026-10-16T00:00Z",
+ "mock": true,
+ "model": "Wflow.jl (sbm) \u2014 synthetic output",
+ "forcing": "ECMWF ENS open data, 51 members \u2014 synthetic",
+ "members": 51,
+ "timestep_hours": 6,
+ "lead_days": 15,
+ "alert_rule": [
+  {
+   "level": 3,
+   "return_period": 20,
+   "min_probability": 0.3
+  },
+  {
+   "level": 2,
+   "return_period": 5,
+   "min_probability": 0.3
+  },
+  {
+   "level": 1,
+   "return_period": 2,
+   "min_probability": 0.5
+  }
+ ],
+ "reaches": {
+  "kinyasungwe": {
+   "alert_level": 0,
+   "prob_exceed": {
+    "rp2": 0.0,
+    "rp5": 0.0,
+    "rp20": 0.0,
+    "rp50": 0.0
+   },
+   "peak_q50": 124.1,
+   "peak_time": "2026-10-20T00:00Z",
+   "thresholds": {
+    "rp2": 334.8,
+    "rp5": 523.3,
+    "rp20": 854.3,
+    "rp50": 1085.8
+   }
+  },
+  "mkondoa": {
+   "alert_level": 1,
+   "prob_exceed": {
+    "rp2": 0.51,
+    "rp5": 0.06,
+    "rp20": 0.0,
+    "rp50": 0.0
+   },
+   "peak_q50": 441.0,
+   "peak_time": "2026-10-19T12:00Z",
+   "thresholds": {
+    "rp2": 460.9,
+    "rp5": 720.5,
+    "rp20": 1176.2,
+    "rp50": 1494.9
+   }
+  },
+  "mkata": {
+   "alert_level": 0,
+   "prob_exceed": {
+    "rp2": 0.29,
+    "rp5": 0.0,
+    "rp20": 0.0,
+    "rp50": 0.0
+   },
+   "peak_q50": 554.7,
+   "peak_time": "2026-10-21T00:00Z",
+   "thresholds": {
+    "rp2": 640.5,
+    "rp5": 1001.2,
+    "rp20": 1634.4,
+    "rp50": 2077.2
+   }
+  },
+  "wami_upper": {
+   "alert_level": 0,
+   "prob_exceed": {
+    "rp2": 0.27,
+    "rp5": 0.02,
+    "rp20": 0.0,
+    "rp50": 0.0
+   },
+   "peak_q50": 689.7,
+   "peak_time": "2026-10-21T06:00Z",
+   "thresholds": {
+    "rp2": 800.4,
+    "rp5": 1251.2,
+    "rp20": 2042.5,
+    "rp50": 2595.9
+   }
+  },
+  "wami_lower": {
+   "alert_level": 1,
+   "prob_exceed": {
+    "rp2": 0.75,
+    "rp5": 0.16,
+    "rp20": 0.0,
+    "rp50": 0.0
+   },
+   "peak_q50": 1067.2,
+   "peak_time": "2026-10-22T12:00Z",
+   "thresholds": {
+    "rp2": 963.4,
+    "rp5": 1505.9,
+    "rp20": 2458.3,
+    "rp50": 3124.4
+   }
+  },
+  "ruvu_upper": {
+   "alert_level": 3,
+   "prob_exceed": {
+    "rp2": 1.0,
+    "rp5": 0.98,
+    "rp20": 0.51,
+    "rp50": 0.31
+   },
+   "peak_q50": 294.9,
+   "peak_time": "2026-10-18T18:00Z",
+   "thresholds": {
+    "rp2": 120.2,
+    "rp5": 188.0,
+    "rp20": 306.8,
+    "rp50": 390.0
+   }
+  },
+  "mvuha": {
+   "alert_level": 2,
+   "prob_exceed": {
+    "rp2": 1.0,
+    "rp5": 0.82,
+    "rp20": 0.22,
+    "rp50": 0.1
+   },
+   "peak_q50": 136.5,
+   "peak_time": "2026-10-18T12:00Z",
+   "thresholds": {
+    "rp2": 74.0,
+    "rp5": 115.7,
+    "rp20": 188.9,
+    "rp50": 240.1
+   }
+  },
+  "ruvu_middle": {
+   "alert_level": 2,
+   "prob_exceed": {
+    "rp2": 1.0,
+    "rp5": 0.78,
+    "rp20": 0.08,
+    "rp50": 0.0
+   },
+   "peak_q50": 523.3,
+   "peak_time": "2026-10-20T00:00Z",
+   "thresholds": {
+    "rp2": 283.7,
+    "rp5": 443.5,
+    "rp20": 724.0,
+    "rp50": 920.2
+   }
+  },
+  "ngerengere": {
+   "alert_level": 1,
+   "prob_exceed": {
+    "rp2": 0.67,
+    "rp5": 0.24,
+    "rp20": 0.0,
+    "rp50": 0.0
+   },
+   "peak_q50": 168.0,
+   "peak_time": "2026-10-19T06:00Z",
+   "thresholds": {
+    "rp2": 145.9,
+    "rp5": 228.1,
+    "rp20": 372.3,
+    "rp50": 473.2
+   }
+  },
+  "ruvu_lower": {
+   "alert_level": 2,
+   "prob_exceed": {
+    "rp2": 0.96,
+    "rp5": 0.65,
+    "rp20": 0.08,
+    "rp50": 0.0
+   },
+   "peak_q50": 915.2,
+   "peak_time": "2026-10-21T06:00Z",
+   "thresholds": {
+    "rp2": 517.5,
+    "rp5": 809.0,
+    "rp20": 1320.6,
+    "rp50": 1678.5
+   }
+  }
+ }
+}
