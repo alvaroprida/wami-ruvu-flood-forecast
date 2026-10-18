@@ -72,15 +72,25 @@ def warm_state(run_start: date, grid: xr.Dataset) -> tuple:
         bulk = [day for day in firm if day <= iri_last]
         if bulk:
             parts.append(chirps.fetch_iri(bulk[0], bulk[-1]))
-        # Newest days one at a time from CHC (it throttles bursts). If a read fails,
-        # the firm period ends there and the remaining days become provisional.
+        # Newest days one at a time from CHC (it throttles bursts). A single unreadable
+        # file is filled with HRES so it cannot block the warm state for good; if CHC
+        # refuses us altogether, the firm period ends and the rest becomes provisional.
+        failures = 0
         for day in (day for day in firm if day > iri_last):
             try:
                 parts.append(chirps.fetch_day("final" if chirps.available("final", day) else "prelim", day))
+                failures = 0
             except Exception as exc:  # noqa: BLE001 - any CHC failure: fall back, don't stop the forecast
-                log.warning("CHIRPS %s unreadable (%s): later days use HRES", day, exc)
-                firm = firm[: firm.index(day)]
-                break
+                failures += 1
+                if failures > 2:
+                    log.warning("CHIRPS unreadable from %s (%s): later days use HRES", day, exc)
+                    firm = firm[: firm.index(day) - failures + 1]
+                    parts = parts[: len(parts) - failures + 1]
+                    break
+                log.warning("CHIRPS %s unreadable (%s): filled with HRES", day, exc)
+                parts.append(hres.fetch_day(day))
+        # CHIRPS (0.05 deg) and HRES (0.25 deg) grids differ: regrid each to the model first.
+        parts = [to_model_grid(p, grid) for p in parts]
     if firm:
         precip = xr.concat(parts, "time")
         run_dir = _run_observed("warm", firm, precip, state, grid, save_state=True)
