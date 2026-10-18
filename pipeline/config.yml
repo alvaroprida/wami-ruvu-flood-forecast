@@ -1,0 +1,37 @@
+# Settings shared by every pipeline step. Paths are relative to the repo root
+# unless absolute; WRFF_DATA_ROOT overrides data_root.
+
+data_root: .cache/data          # downloads, model, runs (several GB, git-ignored)
+
+region:
+  # lon/lat bounds with a margin around both basins: [west, south, east, north]
+  bbox: [35.5, -7.9, 39.1, -4.9]
+  # River mouth cells of the FABDEM flow network (largest upstream area near each
+  # mapped mouth); HydroMT snaps to the nearest cell with >= 5000 km2 upstream.
+  outlets:
+    Wami: [38.8146, -6.1296]
+    Ruvu: [38.8671, -6.3954]
+
+model:
+  res_deg: 0.00833333           # ~1 km
+  timestep_s: 86400             # daily: matches CHIRPS/ENS daily totals and the thresholds
+  river_upa_km2: 30
+
+historical:
+  start: "2001-01-01"           # CHIRPS v2.0 daily covers 1981 - present
+  end: "2025-12-31"
+  spinup_end: "2001-12-31"      # excluded from the annual maxima
+
+forecast:
+  members: 50                   # ECMWF ENS perturbed members (open data has no control-run tp)
+  lead_days: 15
+  history_days: 10              # simulated past shown before the forecast
+  return_periods: [2, 5, 20, 50]
+  # level, return period, minimum share of members exceeding it
+  alert_rule:
+    - [3, 20, 0.30]
+    - [2, 5, 0.30]
+    - [1, 2, 0.50]
+  # Forecast points are placed this far upstream of each reach outlet,
+  # so they never sit on a confluence.
+  point_offset_m: 5000

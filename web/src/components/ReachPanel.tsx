@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { formatPct, formatQ, formatTime, leadText } from '../format'
+import { formatPct, formatQ, formatValid, leadText } from '../format'
 import type { ReachDetail, ReachProps, ReachSummary, Thresholds } from '../types'
 import { AlertBadge } from './AlertBadge'
 import { ForecastCharts } from './ForecastCharts'
@@ -45,7 +45,7 @@ export function ReachPanel({ reach, summary, detail, issued }: Props) {
 
       <div className="mt-3 grid grid-cols-2 gap-2">
         <StatTile label="Forecast peak (median)" value={`${formatQ(summary.peak_q50)} m³/s`} />
-        <StatTile label="Timing of peak" value={leadText(issued, summary.peak_time)} sub={formatTime(summary.peak_time)} />
+        <StatTile label="Timing of peak" value={leadText(issued, summary.peak_time)} sub={formatValid(summary.peak_time)} />
       </div>
 
       <div className="mt-3">
@@ -105,7 +105,7 @@ function DataTable({ detail }: { detail: ReachDetail }) {
         <tbody>
           {rows.map(({ t, i }) => (
             <tr key={t} className="border-t border-line">
-              <td className="py-1 text-left text-ink-2">{formatTime(t)}</td>
+              <td className="py-1 text-left text-ink-2">{formatValid(t)}</td>
               <td>{formatQ(fc.p05[i])}</td>
               <td className="font-medium">{formatQ(fc.p50[i])}</td>
               <td>{formatQ(fc.p95[i])}</td>

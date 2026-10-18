@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths: ['web/**', '.github/workflows/deploy-pages.yml']
   workflow_dispatch:
+  workflow_call:   # after each daily forecast
 
 permissions:
   contents: read
@@ -29,6 +30,18 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+      # Real forecast from the daily job when one exists; demo data otherwise.
+      - name: Use the latest published forecast
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release download forecast-latest -p forecast.tar.gz -D /tmp 2>/dev/null; then
+            rm -rf public/data/latest && mkdir -p public/data/latest
+            tar -xzf /tmp/forecast.tar.gz -C public/data/latest
+            echo "Deploying forecast $(grep -m1 issued public/data/latest/forecast.json)"
+          else
+            echo "No published forecast yet - deploying demo data."
+          fi
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

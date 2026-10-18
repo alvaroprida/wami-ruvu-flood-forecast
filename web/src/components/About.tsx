@@ -3,10 +3,11 @@ import type { Forecast } from '../types'
 import { AlertBadge } from './AlertBadge'
 
 const STEPS = [
-  ['Warm state', 'Wflow runs continuously on near-real-time satellite rainfall (IMERG) and ERA5 temperature, saving the model state every day.'],
-  ['Ensemble forecast', 'Each day the model restarts from that state and is driven by the 51 ECMWF ENS members, 15 days ahead.'],
-  ['Thresholds', 'Return-period flows come from a 40-year Wflow simulation of the same model, so systematic model bias cancels out.'],
+  ['Warm state', 'Every day Wflow is advanced on observed rainfall (CHIRPS; ECMWF day-1 forecasts for the last days CHIRPS has not published yet) with an ERA5-based temperature and evaporation climatology, and the model state is saved.'],
+  ['Ensemble forecast', 'Each day the model restarts from that state and is driven by the 50 perturbed ECMWF ENS members, 15 days ahead.'],
+  ['Thresholds', 'Return-period flows come from a 25-year simulation of the same model (CHIRPS + ERA5, 2001–2025, maxima of 2002–2025), so systematic model bias largely cancels out.'],
   ['Alerts', 'A reach is flagged when enough members exceed a return-period flow at any lead time.'],
+  ['Limitations', 'The model is not yet calibrated against observed discharge: absolute flows (especially in the semi-arid upper Wami) are too high. Alert levels are less affected, because forecasts and thresholds come from the same model.'],
 ]
 
 export function About({ forecast }: { forecast: Forecast }) {
@@ -44,8 +45,8 @@ export function About({ forecast }: { forecast: Forecast }) {
         <ul className="space-y-1 text-ink-2">
           <li>Hydrological model: Wflow.jl (Deltares), built with HydroMT-Wflow</li>
           <li>Forecast rainfall: ECMWF open data, CC BY 4.0</li>
-          <li>Observed rainfall: NASA GPM IMERG</li>
-          <li>Hydrography: MERIT Hydro</li>
+          <li>Observed rainfall: CHIRPS v2.0 (Climate Hazards Center, UCSB)</li>
+          <li>Elevation: FABDEM (Univ. of Bristol), flow network derived with pyflwdir</li>
           <li>Rivers &amp; basemap: © OpenStreetMap contributors, OpenFreeMap</li>
         </ul>
         <p className="mt-3 text-ink-3">

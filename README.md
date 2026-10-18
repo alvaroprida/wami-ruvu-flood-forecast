@@ -6,21 +6,23 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Experimental ensemble river-flow forecasting for the **Wami** and **Ruvu** basins in eastern Tanzania.
-A distributed hydrological model (Wflow) is driven by the 51-member ECMWF ensemble rainfall forecast;
+A distributed hydrological model (Wflow) is driven by the 50-member ECMWF ensemble rainfall forecast;
 forecast peaks are compared against model-consistent return-period flows to flag reaches at risk of flooding
 up to 15 days ahead.
 
 ![Screenshot of the forecast dashboard](docs/screenshot.png)
 
-> **Status: prototype.** The web app currently runs on synthetic forecast data (see
-> [`pipeline/mock`](pipeline/mock)) while the model pipeline is being built. This is a research project,
-> not an official warning service — official flood and weather warnings for Tanzania are issued by the
-> Tanzania Meteorological Authority.
+> **Status: prototype.** The full chain runs: Wflow built from open data, a 25-year historical
+> simulation for the thresholds, and a daily 50-member forecast. The model is **not yet calibrated**
+> against observed discharge, so absolute flows are too high (see [`docs/qa`](docs/qa)); alert levels
+> are less affected because forecasts and thresholds come from the same model. This is a research
+> project, not an official warning service — official flood and weather warnings for Tanzania are
+> issued by the Tanzania Meteorological Authority.
 
 ## How it works
 
 ```
-        observed rainfall (IMERG)                  ECMWF ENS, 51 members, 15 days
+        observed rainfall (CHIRPS)                 ECMWF ENS, 50 members, 15 days
                   │                                             │
                   ▼                                             ▼
    ┌──────────────────────────────┐   daily state   ┌──────────────────────────────┐
@@ -28,8 +30,8 @@ up to 15 days ahead.
    └──────────────────────────────┘                 └──────────────────────────────┘
                                                                 │ discharge per reach
    ┌──────────────────────────────┐                             ▼
-   │ 40-year Wflow simulation     │  2/5/20/50-yr   ┌──────────────────────────────┐
-   │ → annual maxima → Gumbel/GEV │ ──────────────▶ │ Exceedance probabilities     │
+   │ 25-year Wflow simulation     │  2/5/20/50-yr   ┌──────────────────────────────┐
+   │ → annual maxima → Gumbel     │ ──────────────▶ │ Exceedance probabilities     │
    └──────────────────────────────┘   thresholds    │ → alert level per reach      │
                                                     └──────────────────────────────┘
                                                                 │ static JSON
@@ -37,7 +39,7 @@ up to 15 days ahead.
                                                     React + MapLibre + ECharts site
 ```
 
-1. **Warm state.** Wflow runs continuously on near-real-time satellite rainfall, saving its state daily.
+1. **Warm state.** Wflow is advanced every day on observed rainfall (CHIRPS), saving its state.
 2. **Ensemble forecast.** Each day the model restarts from that state, once per ensemble member.
 3. **Thresholds.** Return-period flows come from a long simulation with the *same* model, so systematic
    model bias largely cancels out (the approach used by GloFAS).
@@ -50,17 +52,36 @@ up to 15 days ahead.
    | 2-year flow likely | ≥ 50% of members above the 2-year flow |
 
 The site is fully static: the pipeline writes JSON files, the front-end reads them. No server, no database.
+A scheduled GitHub Actions job runs the warm state and the ensemble forecast every day and redeploys the site.
+The full runbook and design choices are in [`pipeline/README.md`](pipeline/README.md).
 
 ## Repository layout
 
 ```
-model/          Wflow model build (HydroMT-Wflow config, Wflow TOML)        — planned
-pipeline/       Data ingestion, forecast runs, thresholds, alert logic
+pipeline/       Model build, historical run, daily forecast (see pipeline/README.md)
+  static/       Fetch and crop FABDEM (+ derived flow network), SoilGrids, WorldCover, HydroLAKES
+  build/        Forecast points + HydroMT-Wflow build recipe
+  forcing/      CHIRPS, ERA5, ECMWF ENS and HRES readers
+  run/, julia/  Wflow.jl run configuration and runner
+  ops/          Small products used by the daily job (thresholds, climatology)
+  historical.py Historical run and return-period thresholds
+  daily.py      Warm state, ensemble forecast, site JSON
   basins/       Basin delineation from HydroBASINS + overview map (docs/basins.png)
   mock/         Synthetic network + forecast generator used by the prototype site
 web/            React front-end (Vite, TypeScript, MapLibre GL, ECharts, Tailwind)
 docs/           Screenshots and notes
 ```
+
+## Quality checks
+
+[`pipeline/qa/historical_qa.py`](pipeline/qa/historical_qa.py) plots the historical run:
+[daily hydrographs](docs/qa/hydrographs_daily.png), [monthly regime](docs/qa/regime_monthly.png),
+[annual maxima](docs/qa/annual_maxima.png) and the catchment water balance below. Seasonality and the
+timing of known wet years look right; runoff coefficients of about 20–30% are too high for these
+catchments (especially the semi-arid upper Wami) and dry-season baseflow is too low — the main targets
+for calibration.
+
+![Catchment water balance](docs/qa/water_balance.png)
 
 ## Data contract
 
@@ -94,19 +115,22 @@ npm run dev
 ## Roadmap
 
 - [x] Front-end prototype on synthetic data
-- [ ] Wflow model build for both basins (HydroMT-Wflow, MERIT Hydro, reservoirs)
-- [ ] Historical simulation and return-period thresholds
-- [ ] Daily warm-state run on IMERG + ERA5
-- [ ] ECMWF ENS ingestion and ensemble forecast runs
+- [x] Wflow model build for both basins (HydroMT-Wflow, FABDEM-derived hydrography, reservoirs)
+- [x] Historical simulation 2001–2025 and return-period thresholds
+- [x] Daily warm-state run on CHIRPS + ERA5
+- [x] ECMWF ENS ingestion and ensemble forecast runs
+- [x] Scheduled daily run and automatic deployment (GitHub Actions)
 - [ ] Hindcast verification against past flood events; comparison with GloFAS and Google Flood Hub
-- [ ] Scheduled daily run and automatic deployment
+- [ ] Calibration against observed discharge (runoff and peaks are overestimated, see QA); floodplain storage; MODIS-based LAI
 
 ## Data & credits
 
 - [Wflow.jl](https://github.com/Deltares/Wflow.jl) and [HydroMT-Wflow](https://github.com/Deltares/hydromt_wflow), Deltares
 - Forecast rainfall: [ECMWF open data](https://www.ecmwf.int/en/forecasts/datasets/open-data), CC BY 4.0
-- Observed rainfall: NASA GPM IMERG
-- Hydrography: MERIT Hydro
+- Observed rainfall: [CHIRPS v2.0](https://www.chc.ucsb.edu/data/chirps) (Funk et al. 2015)
+- Elevation: [FABDEM V1-2](https://doi.org/10.5523/bris.s5hqmjcdj8yo2ibzi9b4ew3sn) (Hawker et al. 2022, CC BY-NC-SA 4.0); flow network derived with [pyflwdir](https://github.com/Deltares/pyflwdir)
+- Soils: [SoilGrids](https://www.isric.org/explore/soilgrids) (ISRIC); land cover: [ESA WorldCover](https://esa-worldcover.org) 2021; lakes: [HydroLAKES](https://www.hydrosheds.org/products/hydrolakes)
+- Temperature and evaporation: ERA5 (Copernicus Climate Change Service)
 - Basin boundaries: [HydroSHEDS HydroBASINS](https://www.hydrosheds.org/products/hydrobasins) v1c
 - River geometry: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL); basemap: [OpenFreeMap](https://openfreemap.org)
 

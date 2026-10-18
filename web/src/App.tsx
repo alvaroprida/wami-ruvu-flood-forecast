@@ -4,7 +4,7 @@ import { AlertIcon } from './components/AlertBadge'
 import { AlertTable } from './components/AlertTable'
 import { ReachPanel } from './components/ReachPanel'
 import { RiverMap } from './components/RiverMap'
-import { formatTime } from './format'
+import { formatTime, setDailyTimestep } from './format'
 import { ALERT_LEVELS } from './theme'
 import type { AlertLevel, Basins, Forecast, Network, ReachDetail } from './types'
 
@@ -33,6 +33,7 @@ export default function App() {
       .then(([n, f, b]) => {
         setNetwork(n)
         setBasins(b)
+        setDailyTimestep(f.timestep_hours >= 24)
         setForecast(f)
         // Open on the most severe reach.
         const top = Object.entries(f.reaches).sort(

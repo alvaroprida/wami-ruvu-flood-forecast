@@ -1,0 +1,9 @@
+reach,area_km2,mean_Q_m3s,rain_mm_yr,runoff_mm_yr,runoff_coefficient
+Kinyasungwe,14490,84.3,686,184,0.27
+Mkondoa,18322,117.6,735,203,0.28
+Wami (upper),35912,256.4,840,225,0.27
+Wami (lower),41464,298.8,870,227,0.26
+Ruvu (upper),2588,27.8,1175,339,0.29
+Ngerengere,2898,14.9,917,163,0.18
+Ruvu (middle),11292,98.4,1076,275,0.26
+Ruvu (lower),17759,172.1,1103,306,0.28

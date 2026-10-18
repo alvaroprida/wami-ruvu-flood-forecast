@@ -1,0 +1,86 @@
+name: Daily forecast
+
+# ECMWF's 00 UTC ensemble is complete around 08:00 UTC.
+on:
+  schedule:
+    - cron: '30 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # upload release assets (state, forecast)
+
+concurrency:
+  group: daily-forecast
+  cancel-in-progress: false
+
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      ran: ${{ steps.check.outputs.ran }}
+    env:
+      WRFF_DATA_ROOT: ${{ github.workspace }}/.cache/data
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The model and its warm state are built locally and published once as
+      # release assets (see pipeline/README.md); skip until they exist.
+      - id: check
+        run: |
+          if gh release view model >/dev/null 2>&1 && gh release view state >/dev/null 2>&1; then
+            echo "ran=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Model or state release not published yet - skipping."
+            echo "ran=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.check.outputs.ran == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: pipeline/requirements.txt
+      - if: steps.check.outputs.ran == 'true'
+        run: pip install -r pipeline/requirements.txt
+
+      - if: steps.check.outputs.ran == 'true'
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.11'
+      - if: steps.check.outputs.ran == 'true'
+        uses: julia-actions/cache@v2
+      - if: steps.check.outputs.ran == 'true'
+        run: julia --project=pipeline/julia -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
+
+      - if: steps.check.outputs.ran == 'true'
+        name: Fetch model and state
+        run: |
+          mkdir -p "$WRFF_DATA_ROOT"
+          gh release download model -p model.tar.gz -D /tmp
+          gh release download state -p state.tar.gz -D /tmp
+          tar -xzf /tmp/model.tar.gz -C "$WRFF_DATA_ROOT"
+          tar -xzf /tmp/state.tar.gz -C "$WRFF_DATA_ROOT"
+
+      - if: steps.check.outputs.ran == 'true'
+        run: python pipeline/daily.py --out /tmp/forecast
+
+      - if: steps.check.outputs.ran == 'true'
+        name: Publish state and forecast
+        run: |
+          tar -czf /tmp/state.tar.gz -C "$WRFF_DATA_ROOT" state
+          gh release upload state /tmp/state.tar.gz --clobber
+          tar -czf /tmp/forecast.tar.gz -C /tmp/forecast .
+          gh release view forecast-latest >/dev/null 2>&1 || \
+            gh release create forecast-latest --title "Latest forecast" --notes "Updated daily by the forecast workflow."
+          gh release upload forecast-latest /tmp/forecast.tar.gz --clobber
+
+  deploy:
+    needs: forecast
+    if: needs.forecast.outputs.ran == 'true'
+    uses: ./.github/workflows/deploy-pages.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

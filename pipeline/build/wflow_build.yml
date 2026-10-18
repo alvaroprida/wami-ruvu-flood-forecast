@@ -1,0 +1,67 @@
+# HydroMT-Wflow (v1.1) build recipe for the Wami + Ruvu model.
+# Values in <angle brackets> are filled in by build_model.py from pipeline/config.yml.
+
+steps:
+  - setup_config:
+      data:
+        time.timestepsecs: 86400
+        model.snow__flag: false          # no snow or glaciers in these basins
+        model.glacier__flag: false
+        model.river_routing: kinematic_wave
+        input.path_forcing: inmaps.nc
+
+  - setup_basemaps:
+      hydrography_fn: fabdem_hydro
+      basin_index_fn: null               # bounds below limit the search instead
+      upscale_method: ihu
+      res: <res_deg>
+      region:
+        subbasin: <outlets>              # both river mouths: one model, two basins
+        uparea: 5000                     # snap to the main river, not a coastal creek
+        bounds: <bbox>
+
+  - setup_rivers:
+      hydrography_fn: fabdem_hydro
+      river_geom_fn: fabdem_rivers       # width + bankfull discharge -> width/depth maps
+      rivdph_method: powlaw
+      river_upa: <river_upa_km2>
+      min_rivwth: 10
+      river_routing: kinematic_wave
+
+  - setup_river_roughness:
+
+  - setup_reservoirs_no_control:         # natural lakes and small dams (e.g. Mindu) as uncontrolled
+      reservoirs_fn: hydro_lakes
+      min_area: 1.0
+
+  - setup_lulcmaps:
+      lulc_fn: esa_worldcover
+      lulc_mapping_fn: esa_worldcover_mapping_default
+
+  - setup_laimaps_from_lulc_mapping:
+      lulc_fn: esa_worldcover
+      lai_mapping_fn: lai_mapping_esa_worldcover
+
+  - setup_soilmaps:
+      soil_fn: soilgrids_2020
+      ptf_ksatver: brakensiek
+
+  - setup_outlets:
+      river_only: true
+
+  - setup_gauges:
+      gauges_fn: <forecast_points>
+      basename: forecast_points
+      snap_to_river: true
+      max_dist: 3000
+      derive_subcatch: false
+
+  - setup_constant_pars:
+      subsurface_water__horizontal_to_vertical_saturated_hydraulic_conductivity_ratio: 100
+      soil_surface_water__infiltration_reduction_parameter: 0.038
+      vegetation_canopy_water__mean_evaporation_to_mean_precipitation_ratio: 0.11
+      compacted_soil_surface_water__infiltration_capacity: 10
+      soil_water_saturated_zone_bottom__max_leakage_volume_flux: 0
+      soil_wet_root__sigmoid_function_shape_parameter: -500
+
+  - setup_cold_states:

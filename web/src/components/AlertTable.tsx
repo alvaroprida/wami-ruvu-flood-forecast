@@ -1,4 +1,4 @@
-import { formatPct, formatQ, formatTime } from '../format'
+import { formatPct, formatQ, formatValid } from '../format'
 import type { Forecast, Network } from '../types'
 import { AlertBadge } from './AlertBadge'
 
@@ -51,7 +51,7 @@ export function AlertTable({ network, forecast, selectedId, onSelect }: Props) {
                 <td className="text-right">{formatPct(r.prob_exceed.rp5)}</td>
                 <td className="text-right">{formatPct(r.prob_exceed.rp20)}</td>
                 <td className="text-right">{formatQ(r.peak_q50)}</td>
-                <td className="pl-4 text-ink-2">{formatTime(r.peak_time)}</td>
+                <td className="pl-4 text-ink-2">{formatValid(r.peak_time)}</td>
               </tr>
             ))}
           </tbody>

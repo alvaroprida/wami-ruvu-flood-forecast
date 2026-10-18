@@ -1,7 +1,7 @@
 import type { EChartsOption } from 'echarts'
 import ReactECharts from 'echarts-for-react'
 import { useMemo } from 'react'
-import { formatDay, formatQ, formatTime } from '../format'
+import { formatDay, formatQ, formatValid } from '../format'
 import { type Palette, usePalette } from '../theme'
 import type { ReachDetail, Thresholds } from '../types'
 
@@ -53,6 +53,17 @@ const tooltipBox = (p: Palette) => ({
   extraCssText: 'border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);',
 })
 
+/** Axis range follows the data; return periods well above it are named in a caption instead. */
+export function yRange(d: ReachDetail, showMembers: boolean) {
+  const fc = d.forecast
+  const dataMax = Math.max(...(showMembers ? fc.members.flat() : fc.p95), ...d.history.q, 1)
+  // Bring the 2-year line into view once flows get within reach of it.
+  const target = dataMax >= 0.4 * d.thresholds.rp2 ? Math.max(dataMax, d.thresholds.rp2) : dataMax
+  const yMax = niceCeil(target * 1.15)
+  const hidden = THRESHOLD_LINES.filter((l) => d.thresholds[l.key] > yMax)
+  return { yMax, hidden }
+}
+
 function hydrographOption(d: ReachDetail, p: Palette, showMembers: boolean): EChartsOption {
   const t = (s: string) => new Date(s).getTime()
   const fc = d.forecast
@@ -62,8 +73,7 @@ function hydrographOption(d: ReachDetail, p: Palette, showMembers: boolean): ECh
 
   const min = t(d.history.times[0])
   const max = ft[ft.length - 1]
-  const top = showMembers ? Math.max(...fc.members.flat()) : Math.max(...fc.p95)
-  const yMax = niceCeil(Math.max(top, d.thresholds.rp20) * 1.08)
+  const { yMax } = yRange(d, showMembers)
   const { xAxis, yAxisStyle } = baseAxes(p, min, max)
 
   const index = new Map(ft.map((v, i) => [v, i]))
@@ -94,7 +104,7 @@ function hydrographOption(d: ReachDetail, p: Palette, showMembers: boolean): ECh
       ...tooltipBox(p),
       formatter: (params) => {
         const x = axisValue(params)
-        const head = `<div style="margin-bottom:4px;color:${p['text-secondary']}">${formatTime(new Date(x).toISOString())}</div>`
+        const head = `<div style="margin-bottom:4px;color:${p['text-secondary']}">${formatValid(new Date(x).toISOString())}</div>`
         const i = index.get(x)
         const h = histIndex.get(x)
         const row = (k: string, v: string) => `<div style="display:flex;justify-content:space-between;gap:16px"><span>${k}</span><b style="font-variant-numeric:tabular-nums">${v}</b></div>`
@@ -223,6 +233,7 @@ export function ForecastCharts({ detail, showMembers }: { detail: ReachDetail; s
   const { palette } = usePalette()
   const hydro = useMemo(() => hydrographOption(detail, palette, showMembers), [detail, palette, showMembers])
   const rain = useMemo(() => rainfallOption(detail, palette), [detail, palette])
+  const { hidden } = yRange(detail, showMembers)
 
   return (
     <div>
@@ -232,6 +243,11 @@ export function ForecastCharts({ detail, showMembers }: { detail: ReachDetail; s
       <h3 className="mt-3 text-sm font-medium text-ink">River discharge at reach outlet</h3>
       <p className="text-xs text-ink-3">Past 10 days simulated from observed rainfall, then the {detail.forecast.members.length}-member forecast</p>
       <ReactECharts option={hydro} notMerge style={{ height: 300 }} />
+      {hidden.length > 0 && (
+        <p className="text-xs text-ink-3">
+          Above this range: {hidden.map((l) => `${l.label} flow ${formatQ(detail.thresholds[l.key])} m³/s`).join(' · ')}
+        </p>
+      )}
     </div>
   )
 }
