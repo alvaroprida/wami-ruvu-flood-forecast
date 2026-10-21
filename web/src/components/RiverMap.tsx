@@ -82,6 +82,14 @@ export function RiverMap({ network, basins, streams, forecast, selectedId, onSel
         cursor={hover ? 'pointer' : 'grab'}
         onMouseMove={onMove}
         onMouseLeave={() => setHover(null)}
+        // Hide the basemap's OSM waterways: the only rivers shown are the model network.
+        onStyleData={(e) => {
+          for (const layer of e.target.getStyle().layers) {
+            if ('source-layer' in layer && layer['source-layer'] === 'waterway') {
+              e.target.setLayoutProperty(layer.id, 'visibility', 'none')
+            }
+          }
+        }}
         onClick={(e) => {
           const id = e.features?.[0]?.properties.id
           if (id) onSelect(id)

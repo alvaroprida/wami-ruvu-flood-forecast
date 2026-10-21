@@ -7,8 +7,8 @@ map shows exactly what the model routes:
   network.geojson   one line per forecast reach: the main channel from its
                     forecast point upstream to the next forecast point, or to
                     the headwaters (main channel = largest upstream area)
-  rivers.geojson    background network (>= MIN_UPA_KM2) inside the model domain,
-                    with upstream area for line width
+  rivers.geojson    background network (>= MIN_UPA_KM2) clipped to the basin
+                    outlines drawn on the map, with upstream area for line width
 
     python pipeline/build/build_reaches.py
 """
@@ -80,11 +80,13 @@ def main() -> None:
     net["attribution"] = "River geometry derived from FABDEM V1-2 (Hawker et al. 2022) with pyflwdir"
     (WEB_DATA / "network.geojson").write_text(json.dumps(net, separators=(",", ":")))
 
-    # Background network, clipped to the model domain.
-    region = gpd.read_file(paths.model / "staticgeoms" / "region.geojson").to_crs(4326)
+    # Background network, clipped to the HydroBASINS outlines shown on the map.
+    basins = gpd.read_file(WEB_DATA / "basins.geojson")
+    outline = basins[basins["kind"] == "basin"].union_all()
     rivers = gpd.read_file(paths.static / "rivers.gpkg")
     rivers = rivers[rivers["uparea"] >= MIN_UPA_KM2]
-    rivers = gpd.clip(rivers, region.union_all())
+    rivers = gpd.clip(rivers, outline)
+    rivers = rivers[rivers.geom_type.isin(["LineString", "MultiLineString"])]
     rivers["geometry"] = rivers.geometry.simplify(SIMPLIFY_DEG)
     rivers["uparea"] = rivers["uparea"].round().astype(int)
     rivers[["uparea", "geometry"]].to_file(WEB_DATA / "rivers.geojson", driver="GeoJSON", COORDINATE_PRECISION=5)
