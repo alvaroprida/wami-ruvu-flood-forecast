@@ -47,7 +47,7 @@ export function About({ forecast }: { forecast: Forecast }) {
           <li>Forecast rainfall: ECMWF open data, CC BY 4.0</li>
           <li>Observed rainfall: CHIRPS v2.0 (Climate Hazards Center, UCSB)</li>
           <li>Elevation: FABDEM (Univ. of Bristol), flow network derived with pyflwdir</li>
-          <li>Rivers &amp; basemap: © OpenStreetMap contributors, OpenFreeMap</li>
+          <li>Rivers: model network derived from FABDEM; basemap: © OpenStreetMap contributors, OpenFreeMap</li>
         </ul>
         <p className="mt-3 text-ink-3">
           Research prototype. Not an official warning service — official flood and weather warnings for Tanzania are

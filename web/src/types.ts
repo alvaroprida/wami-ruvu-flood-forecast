@@ -64,6 +64,11 @@ export interface Basins {
   }[]
 }
 
+export interface Streams {
+  type: 'FeatureCollection'
+  features: { type: 'Feature'; properties: { uparea: number }; geometry: unknown }[]
+}
+
 export interface Network {
   type: 'FeatureCollection'
   features: {

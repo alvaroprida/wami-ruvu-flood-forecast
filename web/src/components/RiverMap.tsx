@@ -7,7 +7,7 @@ import Map, { Layer, Popup, Source, type MapLayerMouseEvent } from 'react-map-gl
 setWorkerUrl(workerUrl)
 import { formatPct, formatQ } from '../format'
 import { ALERT_LEVELS, levelColor, usePalette } from '../theme'
-import type { AlertLevel, Basins, Forecast, Network } from '../types'
+import type { AlertLevel, Basins, Forecast, Network, Streams } from '../types'
 import { AlertBadge, AlertIcon } from './AlertBadge'
 
 const BASEMAP = {
@@ -24,12 +24,13 @@ const BOUNDS: [[number, number], [number, number]] = [
 interface Props {
   network: Network
   basins: Basins
+  streams?: Streams
   forecast: Forecast
   selectedId: string
   onSelect: (id: string) => void
 }
 
-export function RiverMap({ network, basins, forecast, selectedId, onSelect }: Props) {
+export function RiverMap({ network, basins, streams, forecast, selectedId, onSelect }: Props) {
   const { palette, dark } = usePalette()
   const [hover, setHover] = useState<{ id: string; lng: number; lat: number } | null>(null)
 
@@ -85,7 +86,7 @@ export function RiverMap({ network, basins, forecast, selectedId, onSelect }: Pr
           const id = e.features?.[0]?.properties.id
           if (id) onSelect(id)
         }}
-        attributionControl={{ compact: true, customAttribution: 'Rivers © OpenStreetMap contributors · Basins: HydroSHEDS' }}
+        attributionControl={{ compact: true, customAttribution: 'Rivers: derived from FABDEM · Basins: HydroSHEDS' }}
       >
         {/* Basins stay neutral so the alert colours on the rivers carry the signal. */}
         <Source id="basins" type="geojson" data={basins}>
@@ -109,6 +110,20 @@ export function RiverMap({ network, basins, forecast, selectedId, onSelect }: Pr
             paint={{ 'line-color': palette['text-secondary'], 'line-width': 1.5 }}
           />
         </Source>
+        {streams && (
+          <Source id="streams" type="geojson" data={streams}>
+            <Layer
+              id="streams"
+              type="line"
+              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+              paint={{
+                'line-color': palette.river,
+                'line-opacity': 0.55,
+                'line-width': ['interpolate', ['linear'], ['get', 'uparea'], 100, 0.5, 2000, 1.2, 40000, 2.2] as unknown as number,
+              }}
+            />
+          </Source>
+        )}
         <Source id="rivers" type="geojson" data={rivers}>
           <Layer
             id="river-selected"
@@ -196,6 +211,10 @@ export function RiverMap({ network, basins, forecast, selectedId, onSelect }: Pr
           <div className="flex items-center gap-1.5 py-0.5 text-ink-2">
             <span className="inline-block h-0 w-3 border-t border-[var(--text-muted)] opacity-60" />
             Sub-basin (HydroBASINS)
+          </div>
+          <div className="flex items-center gap-1.5 py-0.5 text-ink-2">
+            <span className="inline-block h-0 w-3 border-t border-[var(--river)] opacity-70" />
+            Model river network
           </div>
         </div>
       </div>

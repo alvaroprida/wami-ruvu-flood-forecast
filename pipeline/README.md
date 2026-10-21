@@ -37,6 +37,7 @@ CHIRPS, ECMWF open data, FABDEM, SoilGrids, WorldCover and HydroLAKES need no ac
 python pipeline/static/fetch_static.py        # FABDEM + flow network, SoilGrids, WorldCover, HydroLAKES (~1 GB)
 python pipeline/build/forecast_points.py      # one point per reach, 5 km upstream of its outlet
 python pipeline/build/build_model.py          # hydromt build wflow_sbm
+python pipeline/build/build_reaches.py        # site river lines traced on the model's flow network
 ```
 
 ## Step 2 – historical run and thresholds

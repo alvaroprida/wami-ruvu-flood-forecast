@@ -6,7 +6,7 @@ import { ReachPanel } from './components/ReachPanel'
 import { RiverMap } from './components/RiverMap'
 import { formatTime, setDailyTimestep } from './format'
 import { ALERT_LEVELS } from './theme'
-import type { AlertLevel, Basins, Forecast, Network, ReachDetail } from './types'
+import type { AlertLevel, Basins, Forecast, Network, ReachDetail, Streams } from './types'
 
 const DATA = `${import.meta.env.BASE_URL}data`
 
@@ -19,6 +19,7 @@ async function getJSON<T>(path: string): Promise<T> {
 export default function App() {
   const [network, setNetwork] = useState<Network>()
   const [basins, setBasins] = useState<Basins>()
+  const [streams, setStreams] = useState<Streams>()
   const [forecast, setForecast] = useState<Forecast>()
   const [details, setDetails] = useState<Record<string, ReachDetail>>({})
   const [selectedId, setSelectedId] = useState<string>()
@@ -42,6 +43,11 @@ export default function App() {
         setSelectedId(top[0])
       })
       .catch((e) => setError(String(e)))
+  }, [])
+
+  // Background river network: large and not needed for first paint, so loaded separately.
+  useEffect(() => {
+    getJSON<Streams>('rivers.geojson').then(setStreams).catch(() => undefined)
   }, [])
 
   useEffect(() => {
@@ -92,7 +98,7 @@ export default function App() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <div className="lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:max-h-[860px]">
-          <RiverMap network={network} basins={basins} forecast={forecast} selectedId={selectedId} onSelect={setSelectedId} />
+          <RiverMap network={network} basins={basins} streams={streams} forecast={forecast} selectedId={selectedId} onSelect={setSelectedId} />
         </div>
         <ReachPanel
           reach={reach}

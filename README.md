@@ -100,7 +100,7 @@ Delft-FEWS Published Interface; the operational outputs will also be written as 
 
 ```bash
 # regenerate the mock data (Python 3.10+, standard library only)
-python pipeline/mock/build_network.py        # fetches river geometry from OpenStreetMap
+python pipeline/mock/build_network.py        # initial OSM reach sketch (superseded by pipeline/build/build_reaches.py)
 python pipeline/mock/generate_forecast.py
 
 # basin outlines and overview map (needs geopandas, matplotlib, contextily)
@@ -132,7 +132,7 @@ npm run dev
 - Soils: [SoilGrids](https://www.isric.org/explore/soilgrids) (ISRIC); land cover: [ESA WorldCover](https://esa-worldcover.org) 2021; lakes: [HydroLAKES](https://www.hydrosheds.org/products/hydrolakes)
 - Temperature and evaporation: ERA5 (Copernicus Climate Change Service)
 - Basin boundaries: [HydroSHEDS HydroBASINS](https://www.hydrosheds.org/products/hydrobasins) v1c
-- River geometry: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL); basemap: [OpenFreeMap](https://openfreemap.org)
+- River geometry: traced on the FABDEM-derived flow network used by the model; basemap: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors via [OpenFreeMap](https://openfreemap.org)
 
 ## License
 
