@@ -35,3 +35,20 @@ forecast:
   # Forecast points are placed this far upstream of each reach outlet,
   # so they never sit on a confluence.
   point_offset_m: 5000
+
+ibf:
+  # SFINCS runs only for domains whose inflow reaches are at or above this alert level.
+  min_alert_level: 1
+  # Ensemble quantiles of the forecast hydrograph that are simulated (one SFINCS run each).
+  scenarios: [p50, p95]
+  res_m: 100
+  flood_depth_m: 0.1            # a cell/building counts as affected from this depth
+  depth_classes_m: [0.1, 0.5, 1.0]
+  domains:
+    ruvu_lower:                 # first prototype: Ruvu floodplain from Morogoro-side inflows to the coast
+      bbox: [38.45, -7.08, 39.00, -6.30]
+      inflow_reaches: [ruvu_middle, ngerengere]
+      sea_level_m: 0.0
+  exposure:
+    population: https://data.worldpop.org/GIS/Population/Global_2015_2030/R2025A/2025/TZA/v1/100m/constrained/tza_pop_2025_CN_100m_R2025A_v1.tif
+    buildings: overture            # fetched with the overturemaps CLI, see ibf/README.md

@@ -1,0 +1,9 @@
+# Separate environment from the Wflow pipeline: hydromt-sfincs 2.x needs hydromt >= 1.4.
+hydromt-sfincs>=2.0.0
+rasterio
+geopandas
+pyarrow
+overturemaps
+pyyaml
+numpy
+pandas
