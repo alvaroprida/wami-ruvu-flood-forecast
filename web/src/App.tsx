@@ -9,7 +9,7 @@ const TABS = [
 ] as const
 type TabId = (typeof TABS)[number]['id']
 
-const fromHash = (): TabId => (location.hash === '#ibf' ? 'ibf' : 'fews')
+const fromHash = (): TabId => (location.hash.startsWith('#ibf') ? 'ibf' : 'fews')
 
 export default function App() {
   const [tab, setTab] = useState<TabId>(fromHash)

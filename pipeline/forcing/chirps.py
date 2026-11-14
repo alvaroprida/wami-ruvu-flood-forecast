@@ -117,9 +117,10 @@ def _iri_get(url: str) -> bytes:
 
 def iri_last_day() -> date:
     """Last day the IRI Data Library holds (it lags CHC by a few weeks)."""
-    with tempfile.NamedTemporaryFile(suffix=".nc") as tmp:
-        Path(tmp.name).write_bytes(_iri_get(IRI_LAST_URL))
-        with xr.open_dataset(tmp.name, decode_times=False) as ds:
+    with tempfile.TemporaryDirectory() as tmp:   # a directory, not NamedTemporaryFile: that cannot be reopened on Windows
+        nc = Path(tmp) / "last.nc"
+        nc.write_bytes(_iri_get(IRI_LAST_URL))
+        with xr.open_dataset(nc, decode_times=False) as ds:
             return _julian_to_days(ds["T"].values)[-1].date()
 
 
@@ -130,10 +131,11 @@ def fetch_iri(start: date, end: date) -> xr.DataArray:
     gets the client throttled.
     """
     w, s, e, n = bbox()
-    url = IRI_URL.format(w=w, e=e, s=s, n=n, t0=start.strftime("%-d %b %Y"), t1=end.strftime("%-d %b %Y"))
-    with tempfile.NamedTemporaryFile(suffix=".nc") as tmp:
-        Path(tmp.name).write_bytes(_iri_get(url))
-        with xr.open_dataset(tmp.name, decode_times=False) as ds:
+    url = IRI_URL.format(w=w, e=e, s=s, n=n, t0=f"{start.day} {start:%b %Y}", t1=f"{end.day} {end:%b %Y}")
+    with tempfile.TemporaryDirectory() as tmp:
+        nc = Path(tmp) / "chirps.nc"
+        nc.write_bytes(_iri_get(url))
+        with xr.open_dataset(nc, decode_times=False) as ds:
             da = (ds["prcp"].rename({"T": "time", "Y": "lat", "X": "lon"})
                   .assign_coords(time=_julian_to_days(ds["T"].values)).astype("float32").rename("precip").load())
     if da.sizes["time"] != (end - start).days + 1:

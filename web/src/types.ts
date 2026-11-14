@@ -77,3 +77,38 @@ export interface Network {
     geometry: { type: 'MultiLineString'; coordinates: number[][][] }
   }[]
 }
+
+// Impact-based forecast products: files under public/data/ibf/{demo,live}/ (see pipeline/ibf/).
+export interface IbfScenario {
+  id: string
+  label: string
+  dir: string
+  hydrograph?: { times: string[]; series: Record<string, number[]> }
+}
+
+export interface IbfManifest {
+  kind: 'demo' | 'live'
+  title: string
+  description: string
+  issued?: string
+  period?: [string, string]
+  domain: { id: string; name: string; bbox: [number, number, number, number] }
+  status: 'ok' | 'not_triggered' | 'unavailable'
+  note?: string
+  scenarios: IbfScenario[]
+}
+
+export interface IbfSummary {
+  people_affected: number
+  buildings_affected: number
+  buildings_in_domain: number
+  flooded_area_km2: number
+  max_depth_m: number
+  mean_damage_factor: number
+  building_loss_equivalents: number
+  by_depth_class: Record<string, { people: number; buildings: number }>
+  flood_depth_threshold_m: number
+  vulnerability: { source: string; class: string }
+  population_note: string
+  depth_legend_m: number[]
+}

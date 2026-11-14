@@ -68,6 +68,7 @@ pipeline/       Model build, historical run, daily forecast (see pipeline/README
   daily.py      Warm state, ensemble forecast, site JSON
   basins/       Basin delineation from HydroBASINS + overview map (docs/basins.png)
   mock/         Synthetic network + forecast generator used by the prototype site
+pipeline/ibf/    Impact-based forecast prototype (SFINCS + exposure), see pipeline/ibf/README.md
 web/            React front-end (Vite, TypeScript, MapLibre GL, ECharts, Tailwind)
 docs/           Screenshots and notes
 ```

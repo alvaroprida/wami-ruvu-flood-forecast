@@ -1,0 +1,18 @@
+{
+ "kind": "live",
+ "issued": "2026-11-14T00:00Z",
+ "title": "Live impact forecast",
+ "description": "",
+ "domain": {
+  "id": "ruvu_lower",
+  "name": "Ruvu Lower",
+  "bbox": [
+   38.45,
+   -7.08,
+   39.0,
+   -6.3
+  ]
+ },
+ "status": "not_triggered",
+ "scenarios": []
+}

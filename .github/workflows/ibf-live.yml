@@ -1,0 +1,114 @@
+name: IbF live
+
+# Runs after the daily hazard forecast. If an inflow reach of an IbF domain is alerted, SFINCS is run
+# for the median and 95th-percentile hydrographs and the impact products are published as the
+# `ibf-latest` release asset; otherwise only a "not triggered" manifest is published. The Pages
+# deploy picks the asset up (see deploy-pages.yml).
+on:
+  workflow_run:
+    workflows: ['Daily forecast']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # release assets
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ibf-live
+  cancel-in-progress: false
+
+jobs:
+  decide:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      triggered: ${{ steps.t.outputs.triggered }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pyyaml pandas
+      - name: Latest hazard forecast
+        run: |
+          mkdir -p web/public/data/latest
+          gh release download forecast-latest -p forecast.tar.gz -D /tmp
+          tar -xzf /tmp/forecast.tar.gz -C web/public/data/latest
+      - id: t
+        run: |
+          out=$(python pipeline/ibf/trigger.py)
+          echo "$out"
+          if echo "$out" | grep -q "No domain triggered"; then
+            echo "triggered=false" >> "$GITHUB_OUTPUT"
+            python pipeline/ibf/run_ibf.py live
+            mkdir -p /tmp/ibf && tar -czf /tmp/ibf/ibf.tar.gz -C web/public/data/ibf live
+            gh release view ibf-latest >/dev/null 2>&1 || \
+              gh release create ibf-latest --title "Latest IbF products" --notes "Updated by the IbF live workflow."
+            gh release upload ibf-latest /tmp/ibf/ibf.tar.gz --clobber
+          else
+            echo "triggered=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  run:
+    needs: decide
+    if: needs.decide.outputs.triggered == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 170
+    env:
+      GH_TOKEN: ${{ github.token }}
+      WRFF_DATA_ROOT: ${{ github.workspace }}/.cache/data
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: pipeline/ibf/requirements-sfincs.txt
+      - run: pip install -r pipeline/ibf/requirements-sfincs.txt
+
+      - name: Latest hazard forecast
+        run: |
+          mkdir -p web/public/data/latest
+          gh release download forecast-latest -p forecast.tar.gz -D /tmp
+          tar -xzf /tmp/forecast.tar.gz -C web/public/data/latest
+
+      # DEM, buildings and population are static: fetched once, then restored from the cache.
+      - uses: actions/cache@v4
+        with:
+          path: .cache/data/sfincs/dem_ruvu_lower_fabdem30.tif
+          key: ibf-dem-ruvu_lower-v1
+      - uses: actions/cache@v4
+        with:
+          path: .cache/data/ibf/exposure
+          key: ibf-exposure-ruvu_lower-v1
+      - run: python pipeline/ibf/fetch_dem.py ruvu_lower
+      - run: python pipeline/ibf/exposure.py ruvu_lower
+
+      # SFINCS runs from its Docker image; run() calls `sfincs` in the model directory.
+      - name: SFINCS wrapper
+        run: |
+          docker pull deltares/sfincs-cpu:sfincs-v2.4.1
+          printf '#!/bin/bash\nexec docker run --rm -v "$PWD":/data deltares/sfincs-cpu:sfincs-v2.4.1\n' | sudo tee /usr/local/bin/sfincs
+          sudo chmod +x /usr/local/bin/sfincs
+
+      - run: python pipeline/ibf/run_ibf.py live
+
+      - name: Publish
+        run: |
+          tar -czf /tmp/ibf.tar.gz -C web/public/data/ibf live
+          gh release view ibf-latest >/dev/null 2>&1 || \
+            gh release create ibf-latest --title "Latest IbF products" --notes "Updated by the IbF live workflow."
+          gh release upload ibf-latest /tmp/ibf.tar.gz --clobber
+
+  deploy:
+    needs: [decide, run]
+    if: always() && needs.decide.result == 'success' && (needs.run.result == 'success' || needs.run.result == 'skipped')
+    uses: ./.github/workflows/deploy-pages.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

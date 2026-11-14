@@ -7,6 +7,7 @@ first_day 00:00 (the state time) and ends at last_day+1 00:00. Output at
 time t is therefore the flow of day t-1; ``read_output`` shifts it back.
 """
 
+import os
 import shutil
 import subprocess
 import tomllib
@@ -60,7 +61,7 @@ def write_run(
 
 
 def run(tomls: list[Path]) -> None:
-    julia = shutil.which("julia") or "julia"
+    julia = os.environ.get("JULIA") or shutil.which("julia") or "julia"
     # Wflow parallelises its land and river computations over Julia threads.
     cmd = [julia, "--threads=auto", f"--project={JULIA_PROJECT}", str(JULIA_PROJECT / "run_wflow.jl"), *map(str, tomls)]
     log.info("Wflow: %d run(s)", len(tomls))

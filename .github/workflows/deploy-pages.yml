@@ -42,6 +42,18 @@ jobs:
           else
             echo "No published forecast yet - deploying demo data."
           fi
+      # Live impact products from the IbF workflow; the committed demo (public/data/ibf/demo) is always kept.
+      - name: Use the latest live impact products
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release download ibf-latest -p ibf.tar.gz -D /tmp 2>/dev/null; then
+            rm -rf public/data/ibf/live && mkdir -p public/data/ibf
+            tar -xzf /tmp/ibf.tar.gz -C public/data/ibf
+            echo "Deploying live IbF products: $(grep -m1 issued public/data/ibf/live/manifest.json)"
+          else
+            echo "No live IbF products published yet."
+          fi
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

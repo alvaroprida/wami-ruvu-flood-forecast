@@ -1,0 +1,19 @@
+# Environment for the impact chain (Python 3.10-3.11), tested versions from a working local run.
+# Separate from pipeline/requirements.txt: hydromt-sfincs 1.2 needs hydromt 0.10, the Wflow build uses hydromt 1.x.
+hydromt==0.10.1
+hydromt_sfincs==1.2.2
+numpy==2.2.6
+pandas==2.3.3
+geopandas==1.1.1
+rasterio==1.4.3
+rioxarray==0.19.0
+xarray==2025.6.1
+scipy==1.15.2
+shapely==2.1.2
+pyarrow
+pillow
+overturemaps
+fsspec
+aiohttp
+requests
+pyyaml

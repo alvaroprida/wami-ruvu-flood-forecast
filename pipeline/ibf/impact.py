@@ -51,15 +51,25 @@ def impact_from_depth(
 
 
 def population_on_grid(pop_tif, like):
-    """Sum a population raster onto the SFINCS grid `like` (rasterio dataset or xarray raster)."""
+    """People per cell of the grid `like` (rasterio dataset or anything with transform/crs/shape).
+
+    WorldPop cells (~100 m) are converted to a density, resampled to the finer grid and multiplied by the
+    cell area, so the total is preserved. Cell area is taken in the grid's CRS (metres)."""
     import rasterio
     from rasterio.warp import Resampling, reproject
 
-    out = np.zeros(like.shape, dtype="float64")
     with rasterio.open(pop_tif) as src:
-        reproject(rasterio.band(src, 1), out, dst_transform=like.transform, dst_crs=like.crs,
-                  resampling=Resampling.sum, src_nodata=src.nodata, dst_nodata=0)
-    return out
+        pop = src.read(1, masked=True).filled(0.0).astype("float64")
+        # cell area of each WorldPop row in m2 (latitude-dependent), from the cell size in degrees
+        lat = src.xy(np.arange(src.height), np.zeros(src.height, dtype=int))[1]
+        dy = abs(src.transform.e) * 110_574.0
+        dx = abs(src.transform.a) * 111_320.0 * np.cos(np.radians(lat))
+        density = pop / (dx * dy)[:, None]
+        out = np.zeros(like.shape, dtype="float64")
+        reproject(density, out, src_transform=src.transform, src_crs=src.crs, dst_transform=like.transform,
+                  dst_crs=like.crs, resampling=Resampling.nearest, src_nodata=None, dst_nodata=0)
+    cell_area = abs(like.transform.a * like.transform.e)
+    return out * cell_area
 
 
 def building_cells(buildings_parquet, like):
