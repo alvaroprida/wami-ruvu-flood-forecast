@@ -4,7 +4,8 @@ Written against the hydromt-sfincs 2.0 component API. NOT YET EXECUTED: it needs
 the SFINCS executable (Windows exe, or Docker/Singularity on Linux), which was not
 available when this was written. Expect to fix small API details on first run.
 
-    python pipeline/ibf/sfincs_model.py ruvu_lower --dem .cache/data/static/dem_raw.tif --vm docker
+    python pipeline/ibf/fetch_dem.py ruvu_lower        # 30 m FABDEM mosaic
+    python pipeline/ibf/sfincs_model.py ruvu_lower --dem .cache/data/sfincs/dem_ruvu_lower_fabdem30.tif --vm docker
 """
 
 import argparse

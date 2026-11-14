@@ -44,6 +44,9 @@ ibf:
   res_m: 100
   flood_depth_m: 0.1            # a cell/building counts as affected from this depth
   depth_classes_m: [0.1, 0.5, 1.0]
+  vulnerability:
+    source: Englhardt et al. (2019), NHESS 19, 1703-1722
+    class: I                    # I = non-engineered / informal (mud, adobe, scrap); II = wooden
   domains:
     ruvu_lower:                 # first prototype: Ruvu floodplain from Morogoro-side inflows to the coast
       bbox: [38.45, -7.08, 39.00, -6.30]

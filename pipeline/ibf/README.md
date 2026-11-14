@@ -15,7 +15,8 @@ forecast.json ──▶ trigger.py ──▶ sfincs_model.py ──▶ depth map
 |---|---|---|
 | Trigger: domains whose inflow reaches are alerted | `trigger.py` | works on the current forecast |
 | Hydraulic model build + run, per scenario (`p50`, `p95` hydrograph) | `sfincs_model.py` | **written, not executed** (no SFINCS executable was available) |
-| Depth × exposure → impact | `impact.py` (`test_impact.py`) | core logic tested on synthetic data; raster/vector alignment helpers not yet run |
+| 30 m DEM | `fetch_dem.py` | tested (real FABDEM tiles for the domain) |
+| Depth × exposure → impact, Englhardt curves | `impact.py`, `vulnerability.py` (`test_impact.py`) | core logic tested on synthetic data; raster/vector alignment helpers not yet run |
 | Site JSON + IbF tab | — | not started: the tab shows the chain and the triggered reaches only |
 
 ## Setup
@@ -45,13 +46,16 @@ so building counts are lower bounds in places; population is the more complete m
 
 ## Known gaps and decisions
 
-- **Elevation.** The prototype uses `static/dem_raw.tif` (FABDEM averaged to ~90 m). For production,
-  mosaic the 30 m FABDEM tiles so the subgrid tables see the full resolution.
+- **Elevation.** 30 m FABDEM, mosaicked for the domain by `fetch_dem.py` (tested: 2808 x 1980 cells for the lower Ruvu).
+  FABDEM has forests and buildings removed but is still a surface model of limited vertical accuracy on flat floodplains.
 - **Wflow bias.** Wflow is uncalibrated and its discharge is too high; SFINCS needs absolute discharge,
   so flood extents will be overestimated until Wflow is bias-corrected (or hydrographs are quantile-mapped).
 - **Boundaries.** Inflow at the two reach outlets, sea level fixed at 0 m (no tide or surge), no rainfall
   on the domain and no river bathymetry beyond what FABDEM carries.
 - **Scenarios.** Two runs per domain (median and 95th-percentile hydrograph) instead of the full ensemble.
-- **Vulnerability.** Not applied yet. `impact.py` reports affected counts by depth class
-  (0.1–0.5, 0.5–1, >1 m); damage fractions need a depth–damage curve to be chosen (e.g. JRC Africa).
+- **Vulnerability.** Stage-damage curves of Englhardt et al. (2019), class I (non-engineered/informal buildings) by
+  default, class II (wooden) selectable in `config.yml`. The paper only publishes the curves as a figure, so the points
+  in `vulnerability.py` were digitised from Fig. 2 (about ±0.03). Every building is assumed to be class I: Overture has
+  no construction material, so this is a deliberately pessimistic choice for rural/informal stock and overstates damage
+  in engineered city buildings. Damage is reported as a mean damage factor and as building-loss equivalents.
 - **Hosting.** Flood-extent products for the site should be simplified polygons (GeoJSON), not rasters.

@@ -7,6 +7,8 @@
 
 import numpy as np
 
+from vulnerability import damage_factor
+
 
 def _class_label(lo: float, hi: float | None) -> str:
     return f">{lo:g} m" if hi is None else f"{lo:g}-{hi:g} m"
@@ -18,13 +20,16 @@ def impact_from_depth(
     bld_rc: tuple[np.ndarray, np.ndarray],
     threshold: float = 0.1,
     classes: list[float] = (0.1, 0.5, 1.0),
+    vuln_class: str = "I",
 ) -> dict:
     """depth, pop: 2-D arrays on the same grid (m, people per cell).
-    bld_rc: (row, col) grid index of each building centroid."""
+    bld_rc: (row, col) grid index of each building centroid.
+    vuln_class: Englhardt et al. (2019) curve applied to every building (informal = "I")."""
     d = np.nan_to_num(depth, nan=0.0)
     p = np.nan_to_num(pop, nan=0.0)
     rows, cols = bld_rc
     bd = d[rows, cols]
+    df = damage_factor(bd, vuln_class)
 
     edges = [*classes, None]
     by_class = {}
@@ -36,6 +41,9 @@ def impact_from_depth(
     return {
         "people_affected": float(p[d >= threshold].sum()),
         "buildings_affected": int((bd >= threshold).sum()),
+        # Mean damage factor over the flooded buildings, and the same expressed as whole buildings lost.
+        "mean_damage_factor": float(df[bd >= threshold].mean()) if (bd >= threshold).any() else 0.0,
+        "building_loss_equivalents": float(df[bd >= threshold].sum()),
         "flooded_area_km2": None,  # set by the caller, which knows the cell size
         "max_depth_m": float(d.max()) if d.size else 0.0,
         "by_depth_class": by_class,
