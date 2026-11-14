@@ -31,6 +31,7 @@ from shapely.geometry import Point, box  # noqa: E402
 from trigger import ROOT, load_config  # noqa: E402
 
 SEA_LEVEL_M = 0.0
+SEA_DEM_M = 0.05         # DEM cells at or below this elevation are sea, not floodplain
 WARMUP_DAYS = 3          # constant initial inflow so the river is filled when the event starts
 SNAP_RADIUS_M = 600      # inflow points are moved to the lowest DEM cell within this distance
 
@@ -80,7 +81,7 @@ def build(domain: str, q: pd.DataFrame, dem: Path, root: Path, res_m: float | No
     sf.setup_mask_active(zmin=-5.0, reset_mask=True, fill_area=10.0)
     sf.setup_mask_bounds(btype="waterlevel", zmax=0.05, reset_bounds=True)
     sf.setup_manning_roughness(manning_land=0.05, manning_sea=0.02)
-    sf.setup_subgrid(datasets_dep=[{"elevtn": "fabdem"}], nr_subgrid_pixels=4, manning_land=0.05, manning_sea=0.02,
+    sf.setup_subgrid(datasets_dep=[{"elevtn": "fabdem"}], nr_subgrid_pixels=6, manning_land=0.05, manning_sea=0.02,
                      write_dep_tif=False, write_man_tif=False)
 
     # Inflow points: reach outlets snapped onto the DEM's lowest cell (the channel) nearby.
@@ -116,10 +117,16 @@ def run(root: Path, wsl_distro: str | None = None) -> None:
         script = (f"rm -rf {tmp} && mkdir -p /data && cp -r '{_wsl(root)}' {tmp} && cd {tmp} && "
                   f"export OMP_NUM_THREADS=${{OMP_NUM_THREADS:-8}} && sfincs > run_stdout.txt 2>&1; rc=$?; "
                   f"cp -f sfincs_map.nc sfincs_his.nc sfincs_log.txt run_stdout.txt '{_wsl(out)}/' 2>/dev/null; exit $rc")
-        subprocess.run(["wsl", "-d", distro, "--", "bash", "-c", script], check=True)
+        # SFINCS can exit non-zero after a complete run, so success is judged by its output, not its exit code.
+        subprocess.run(["wsl", "-d", distro, "--", "bash", "-c", script])
+        done = (out / "run_stdout.txt").exists() and "Simulation finished" in (out / "run_stdout.txt").read_text(errors="ignore")
+        if not done or not (out / "sfincs_map.nc").exists():
+            raise RuntimeError(f"SFINCS did not finish: see {out / 'run_stdout.txt'}")
     else:
         with (out / "run_stdout.txt").open("w") as log:
-            subprocess.run(["sfincs"], cwd=root, check=True, stdout=log)
+            subprocess.run(["sfincs"], cwd=root, stdout=log)
+        if "Simulation finished" not in (out / "run_stdout.txt").read_text(errors="ignore"):
+            raise RuntimeError(f"SFINCS did not finish: see {out / 'run_stdout.txt'}")
         for f in ("sfincs_map.nc", "sfincs_his.nc", "sfincs_log.txt"):
             if (root / f).exists():
                 shutil.copy(root / f, out / f)
@@ -138,6 +145,9 @@ def depth30(root: Path, dem: Path, out_tif: Path, hmin: float = 0.05) -> Path:
     d = rxr.open_rasterio(dem).squeeze(drop=True)
     d = d.where(d > -9000).rio.reproject(zs.raster.crs, resolution=30.0)
     depth = downscale_floodmap(zsmax=zs, dep=d, hmin=hmin, nrmax=2000)
+    # The sea is not flooding: FABDEM holds the ocean at exactly 0 m, so those cells are dropped (the coastal
+    # water-level boundary can raise the nearshore sea a little). Permanent river water stays in the map.
+    depth = depth.where(d > SEA_DEM_M, 0.0)
     out_tif.parent.mkdir(parents=True, exist_ok=True)
     depth.rio.to_raster(out_tif, compress="deflate")
     return out_tif

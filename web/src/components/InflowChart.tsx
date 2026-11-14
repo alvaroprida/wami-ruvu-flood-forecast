@@ -12,7 +12,7 @@ export function InflowChart({ times, series, names }: { times: string[]; series:
   const option = useMemo<EChartsOption>(
     () => ({
       animation: false,
-      grid: { left: 52, right: 16, top: 28, bottom: 28 },
+      grid: { left: 52, right: 16, top: 52, bottom: 28 },
       legend: { top: 0, left: 0, icon: 'roundRect', itemHeight: 3, itemWidth: 14, textStyle: { color: p['text-secondary'], fontSize: 12 } },
       tooltip: {
         trigger: 'axis',
@@ -31,7 +31,7 @@ export function InflowChart({ times, series, names }: { times: string[]; series:
       yAxis: {
         type: 'value',
         name: 'm³/s',
-        nameTextStyle: { color: p['text-muted'], align: 'left', padding: [0, 0, 0, -40] },
+        nameTextStyle: { color: p['text-muted'], align: 'left', padding: [0, 0, 6, -40] },
         axisLabel: { color: p['text-muted'] },
         splitLine: { lineStyle: { color: p.grid } },
       },

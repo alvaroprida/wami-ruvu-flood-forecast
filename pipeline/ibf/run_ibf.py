@@ -40,17 +40,19 @@ def forecast_hydrographs(reaches: list[str], scenario: str, latest: Path) -> pd.
     return pd.DataFrame(cols)
 
 
-def run_scenario(domain: str, q: pd.DataFrame, out: Path, work: Path, data_root: Path, meta: dict, res: float | None) -> dict:
+def run_scenario(domain: str, q: pd.DataFrame, out: Path, work: Path, data_root: Path, meta: dict, res: float | None, reuse: bool = False) -> dict:
     import products  # heavy GIS imports only when a scenario is actually run
     import sfincs_model
 
     dem = data_root / "sfincs" / f"dem_{domain}_fabdem30.tif"
     exp = data_root / "ibf" / "exposure"
     work.mkdir(parents=True, exist_ok=True)
-    sfincs_model.build(domain, q, dem, work, res)
-    sfincs_model.run(work)
+    if not (reuse and (work / "out" / "sfincs_map.nc").exists()):
+        sfincs_model.build(domain, q, dem, work, res)
+        sfincs_model.run(work)
     depth = sfincs_model.depth30(work, dem, work / "depth30.tif")
-    s = products.build(depth, exp / f"exposure_{domain}.parquet", exp / f"population_{domain}.tif", out, meta)
+    s = products.build(depth, exp / f"exposure_{domain}.parquet", exp / f"population_{domain}.tif", out, meta,
+                       exp / f"admin_{domain}.geojson")
     print(f"  {out.name}: {s['people_affected']:,.0f} people, {s['buildings_affected']:,} buildings, "
           f"{s['flooded_area_km2']:.0f} km2, max depth {s['max_depth_m']:.1f} m")
     return {"hydrograph": {"times": iso(q.index), "series": {c: [round(float(v), 1) for v in q[c]] for c in q.columns}}}
@@ -78,7 +80,7 @@ def demo(a) -> None:
     q = q.loc[t0:t1]
     work = a.data_root / "ibf" / "runs" / f"demo_{domain}"
     meta = {"kind": "demo", "domain": domain, "peak_inflow_m3s": {c: round(float(q[c].max()), 1) for c in q.columns}}
-    sc = run_scenario(domain, q, WEB_IBF / "demo" / "event", work, a.data_root, meta, a.res)
+    sc = run_scenario(domain, q, WEB_IBF / "demo" / "event", work, a.data_root, meta, a.res, a.reuse)
     write_manifest("demo", {
         "kind": "demo", "title": a.title, "description": a.description, "period": iso([q.index[0], q.index[-1]]),
         "domain": domain_info(domain), "status": "ok",
@@ -104,7 +106,7 @@ def live(a) -> None:
         q = forecast_hydrographs(inflow, scen, latest)
         work = a.data_root / "ibf" / "runs" / f"live_{domain}_{scen}"
         meta = {"kind": "live", "domain": domain, "scenario": scen, "issued": fc["issued"]}
-        sc = run_scenario(domain, q, WEB_IBF / "live" / scen, work, a.data_root, meta, a.res)
+        sc = run_scenario(domain, q, WEB_IBF / "live" / scen, work, a.data_root, meta, a.res, a.reuse)
         label = {"p50": "Median forecast", "p95": "Severe case (95th percentile)"}.get(scen, scen)
         scenarios.append({"id": scen, "label": label, "dir": scen, **sc})
     write_manifest("live", {**base, "title": "Live impact forecast", "description": "", "domain": domain_info(domain),
@@ -117,6 +119,7 @@ if __name__ == "__main__":
     ap.add_argument("--data-root", type=Path, default=Path(os.environ.get("WRFF_DATA_ROOT", ROOT / ".cache" / "data")))
     ap.add_argument("--domain", default="ruvu_lower")
     ap.add_argument("--res", type=float, help="SFINCS grid resolution [m], default from config")
+    ap.add_argument("--reuse", action="store_true", help="skip build + SFINCS when a finished run exists in the work dir")
     ap.add_argument("--hydro", type=Path, help="demo: daily Wflow discharge CSV")
     ap.add_argument("--title", default="Demo event")
     ap.add_argument("--description", default="")

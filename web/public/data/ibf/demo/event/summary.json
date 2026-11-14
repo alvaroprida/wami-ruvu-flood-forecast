@@ -1,0 +1,224 @@
+{
+ "kind": "demo",
+ "domain": "ruvu_lower",
+ "peak_inflow_m3s": {
+  "ruvu_middle": 2159.1,
+  "ngerengere": 396.8
+ },
+ "people_affected": 5717.7831855712975,
+ "buildings_affected": 2157,
+ "mean_damage_factor": 0.8506408016981215,
+ "building_loss_equivalents": 1834.832209262848,
+ "flooded_area_km2": 296.5086,
+ "max_depth_m": 5.985172271728516,
+ "by_depth_class": {
+  "0.1-0.5 m": {
+   "people": 823.2162105617166,
+   "buildings": 264
+  },
+  "0.5-1 m": {
+   "people": 1203.5123533797794,
+   "buildings": 431
+  },
+  ">1 m": {
+   "people": 3691.054621629801,
+   "buildings": 1462
+  }
+ },
+ "buildings_in_domain": 182622,
+ "areas": [
+  {
+   "id": 8,
+   "ward": "Magomeni",
+   "district": "Bagamoyo",
+   "people": 2207.0,
+   "buildings": 1001,
+   "area_km2": 108.13,
+   "max_depth": 5.18,
+   "damage": 0.88,
+   "pop_total": 61485.0,
+   "buildings_total": 23282
+  },
+  {
+   "id": 15,
+   "ward": "Vigwaza",
+   "district": "Bagamoyo",
+   "people": 952.0,
+   "buildings": 319,
+   "area_km2": 38.12,
+   "max_depth": 5.24,
+   "damage": 0.81,
+   "pop_total": 33018.0,
+   "buildings_total": 7078
+  },
+  {
+   "id": 24,
+   "ward": "Mafizi",
+   "district": "Kisarawe",
+   "people": 608.0,
+   "buildings": 242,
+   "area_km2": 48.38,
+   "max_depth": 5.99,
+   "damage": 0.91,
+   "pop_total": 5074.0,
+   "buildings_total": 1250
+  },
+  {
+   "id": 32,
+   "ward": "Mlandizi",
+   "district": "Kibaha",
+   "people": 560.0,
+   "buildings": 169,
+   "area_km2": 23.36,
+   "max_depth": 5.21,
+   "damage": 0.89,
+   "pop_total": 82814.0,
+   "buildings_total": 11419
+  },
+  {
+   "id": 33,
+   "ward": "Ruvu",
+   "district": "Kibaha",
+   "people": 387.0,
+   "buildings": 110,
+   "area_km2": 11.54,
+   "max_depth": 4.54,
+   "damage": 0.62,
+   "pop_total": 3371.0,
+   "buildings_total": 1466
+  },
+  {
+   "id": 27,
+   "ward": "Dutumi",
+   "district": "Kibaha",
+   "people": 286.0,
+   "buildings": 83,
+   "area_km2": 21.29,
+   "max_depth": 5.54,
+   "damage": 0.81,
+   "pop_total": 3176.0,
+   "buildings_total": 688
+  },
+  {
+   "id": 30,
+   "ward": "Kilangalanga",
+   "district": "Kibaha",
+   "people": 192.0,
+   "buildings": 44,
+   "area_km2": 8.0,
+   "max_depth": 3.71,
+   "damage": 0.82,
+   "pop_total": 6818.0,
+   "buildings_total": 1188
+  },
+  {
+   "id": 31,
+   "ward": "Kwala",
+   "district": "Kibaha",
+   "people": 151.0,
+   "buildings": 64,
+   "area_km2": 18.91,
+   "max_depth": 3.44,
+   "damage": 0.93,
+   "pop_total": 6948.0,
+   "buildings_total": 2175
+  },
+  {
+   "id": 1,
+   "ward": "Kidugalo",
+   "district": "Morogoro",
+   "people": 125.0,
+   "buildings": 33,
+   "area_km2": 2.7,
+   "max_depth": 1.99,
+   "damage": 0.78,
+   "pop_total": 990.0,
+   "buildings_total": 212
+  },
+  {
+   "id": 19,
+   "ward": "Mbwawa",
+   "district": "Kibaha Urban",
+   "people": 121.0,
+   "buildings": 56,
+   "area_km2": 5.61,
+   "max_depth": 4.51,
+   "damage": 0.73,
+   "pop_total": 7606.0,
+   "buildings_total": 2104
+  },
+  {
+   "id": 4,
+   "ward": "Yombo",
+   "district": "Bagamoyo",
+   "people": 70.0,
+   "buildings": 22,
+   "area_km2": 5.5,
+   "max_depth": 5.01,
+   "damage": 0.84,
+   "pop_total": 12420.0,
+   "buildings_total": 4355
+  },
+  {
+   "id": 29,
+   "ward": "Kikongo",
+   "district": "Kibaha",
+   "people": 58.0,
+   "buildings": 14,
+   "area_km2": 4.63,
+   "max_depth": 3.45,
+   "damage": 0.74,
+   "pop_total": 3447.0,
+   "buildings_total": 1112
+  }
+ ],
+ "districts": [
+  {
+   "district": "Bagamoyo",
+   "people": 3229.0,
+   "buildings": 1342,
+   "pop_total": 237768.0,
+   "buildings_total": 69672
+  },
+  {
+   "district": "Kibaha",
+   "people": 1634.0,
+   "buildings": 484,
+   "pop_total": 133856.0,
+   "buildings_total": 26005
+  },
+  {
+   "district": "Kisarawe",
+   "people": 608.0,
+   "buildings": 242,
+   "pop_total": 37665.0,
+   "buildings_total": 11907
+  },
+  {
+   "district": "Morogoro",
+   "people": 125.0,
+   "buildings": 33,
+   "pop_total": 990.0,
+   "buildings_total": 212
+  },
+  {
+   "district": "Kibaha Urban",
+   "people": 121.0,
+   "buildings": 56,
+   "pop_total": 292568.0,
+   "buildings_total": 74809
+  }
+ ],
+ "flood_depth_threshold_m": 0.1,
+ "vulnerability": {
+  "source": "Englhardt et al. (2019), NHESS 19, 1703-1722",
+  "class": "I"
+ },
+ "population_note": "People from the WorldPop 2025 100 m constrained grid in flooded cells (conserves the total).",
+ "depth_legend_m": [
+  0.1,
+  0.5,
+  1.0,
+  2.0
+ ]
+}

@@ -111,4 +111,28 @@ export interface IbfSummary {
   vulnerability: { source: string; class: string }
   population_note: string
   depth_legend_m: number[]
+  areas?: IbfArea[]
+  districts?: IbfDistrict[]
+}
+
+/** Impact in one ward (ADM3), as written by pipeline/ibf/products.py. */
+export interface IbfArea {
+  id: number
+  ward: string
+  district: string
+  people: number
+  buildings: number
+  area_km2: number
+  max_depth: number
+  damage: number
+  pop_total: number
+  buildings_total: number
+}
+
+export interface IbfDistrict {
+  district: string
+  people: number
+  buildings: number
+  pop_total: number
+  buildings_total: number
 }

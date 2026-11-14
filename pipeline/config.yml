@@ -41,7 +41,7 @@ ibf:
   min_alert_level: 1
   # Ensemble quantiles of the forecast hydrograph that are simulated (one SFINCS run each).
   scenarios: [p50, p95]
-  res_m: 100
+  res_m: 150
   flood_depth_m: 0.1            # a cell/building counts as affected from this depth
   depth_classes_m: [0.1, 0.5, 1.0]
   vulnerability:

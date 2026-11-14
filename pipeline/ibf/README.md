@@ -16,6 +16,7 @@ hydrographs ──▶ sfincs_model.py ──▶ max depth, 30 m ──▶ produc
 |---|---|
 | `trigger.py` | Which domains to run: any inflow reach at alert level ≥ `min_alert_level` in `forecast.json` |
 | `fetch_dem.py` | 30 m FABDEM mosaic for the domain |
+| `admin.py` | Ward (ADM3) and district (ADM2) polygons from geoBoundaries, used to aggregate impact |
 | `exposure.py` | Overture buildings + WorldPop window; people allocated to buildings by footprint area |
 | `event_hydrograph.py` | Wflow run for a past period (CHIRPS final, cold start with spin-up) → daily discharge |
 | `sfincs_model.py` | Build (hydromt-sfincs), run (WSL distro or native `sfincs`), downscale depth to 30 m |
@@ -58,10 +59,10 @@ active environment (other installs, e.g. PostgreSQL, set `PROJ_LIB` globally and
 - **Wflow bias.** Wflow is uncalibrated and its discharge is far too high (the model's own 2-year flow at
   `ruvu_middle` is about 2,000 m³/s). SFINCS needs absolute discharge, so flood extent and impact are
   **overestimates** until Wflow is calibrated or bias-corrected. This is the main caveat of every number here.
-- **Hydraulic model.** 100 m grid, 4 × 4 subgrid pixels from the 30 m FABDEM, Manning 0.05 on land, inflow at
+- **Hydraulic model.** 150 m grid, 6 × 6 subgrid pixels (25 m) from the 30 m FABDEM, Manning 0.05 on land, inflow at
   the two reach outlets (snapped to the lowest cell within 600 m), coast as a fixed 0 m water level (no tide or
   surge), no rainfall on the domain, no infiltration, no river bathymetry beyond FABDEM. Max depth is
-  downscaled to 30 m. Permanent water (river channels, sea) is not removed from the depth map.
+  downscaled to 30 m. Sea cells (DEM ≤ 0.05 m) are removed; permanent river water stays in the depth map.
 - **Exposure.** WorldPop R2025A 2025, 100 m constrained (people per flooded cell, total conserved). Overture
   buildings (centroids, ≥ 15 m²); coverage in rural Tanzania is partial, so building counts are lower bounds.
   The people allocated to buildings add up to less than the WorldPop total because some cells have people but

@@ -86,7 +86,9 @@ jobs:
           path: .cache/data/ibf/exposure
           key: ibf-exposure-ruvu_lower-v1
       - run: python pipeline/ibf/fetch_dem.py ruvu_lower
-      - run: python pipeline/ibf/exposure.py ruvu_lower
+      - run: |
+          python pipeline/ibf/exposure.py ruvu_lower
+          python pipeline/ibf/admin.py ruvu_lower
 
       # SFINCS runs from its Docker image; run() calls `sfincs` in the model directory.
       - name: SFINCS wrapper

@@ -55,7 +55,43 @@ def _save_png(rgba_utm, transform, crs, path: Path) -> list:
     return [[w, n], [e, n], [e, s], [w, s]]
 
 
-def build(depth_tif: Path, exposure: Path, pop_tif: Path, out: Path, meta: dict) -> dict:
+def _by_ward(admin: Path, out: Path, depth, pop, transform, crs, rc, bd, hit, damage, thr, cell_km2):
+    """Aggregate impact per ward; writes admin.geojson (all wards, for the choropleths) and returns the
+    wards with any impact, worst first, plus a district roll-up."""
+    from rasterio import features
+
+    wards = gpd.read_file(admin)
+    ids = features.rasterize(zip(wards.to_crs(crs).geometry, wards["id"]), out_shape=depth.shape,
+                             transform=transform, fill=0, dtype="int32")
+    n = int(wards["id"].max()) + 1
+    flooded = depth >= thr
+    rows, cols = rc
+    bid = ids[rows, cols]
+    w = wards.set_index("id")
+    count = lambda m: np.bincount(m, minlength=n)                       # noqa: E731
+    people = np.bincount(ids[flooded], weights=pop[flooded], minlength=n)
+    w["people"] = people[w.index].round(0)
+    w["pop_total"] = np.bincount(ids.ravel(), weights=pop.ravel(), minlength=n)[w.index].round(0)
+    w["buildings"] = count(bid[hit])[w.index]
+    w["buildings_total"] = count(bid)[w.index]
+    w["area_km2"] = (count(ids[flooded])[w.index] * cell_km2).round(2)
+    w["max_depth"] = [float(depth[ids == i].max()) if (ids == i).any() else 0.0 for i in w.index]
+    w["max_depth"] = w["max_depth"].round(2)
+    dmg = np.bincount(bid[hit], weights=damage, minlength=n)
+    w["damage"] = np.where(w["buildings"] > 0, dmg[w.index] / np.maximum(w["buildings"], 1), 0.0).round(2)
+    w = w.reset_index()
+    w["geometry"] = w.geometry.simplify(0.0005)
+    w.to_file(out / "admin.geojson", driver="GeoJSON", COORDINATE_PRECISION=5)
+
+    keep = ["id", "ward", "district", "people", "buildings", "area_km2", "max_depth", "damage", "pop_total", "buildings_total"]
+    areas = w[(w.people > 0) | (w.buildings > 0)].sort_values("people", ascending=False)[keep]
+    dist = (w.groupby("district")[["people", "buildings", "pop_total", "buildings_total"]].sum()
+            .reset_index().sort_values("people", ascending=False))
+    dist = dist[(dist.people > 0) | (dist.buildings > 0)]
+    return areas.to_dict("records"), dist.to_dict("records")
+
+
+def build(depth_tif: Path, exposure: Path, pop_tif: Path, out: Path, meta: dict, admin: Path | None = None) -> dict:
     cfg = load_config()
     thr, classes = cfg["flood_depth_m"], cfg["depth_classes_m"]
     vuln = cfg["vulnerability"]["class"]
@@ -79,7 +115,8 @@ def build(depth_tif: Path, exposure: Path, pop_tif: Path, out: Path, meta: dict)
     b, rows, cols = b[ok].copy(), rows[ok], cols[ok]
     bd = dmax[rows, cols]
 
-    res = impact_from_depth(depth, pop, (rows, cols), threshold=thr, classes=classes, vuln_class=vuln)
+    res = impact_from_depth(depth, pop, (rows, cols), threshold=thr, classes=classes, vuln_class=vuln,
+                            bld_depth=dmax)
     res["flooded_area_km2"] = float((depth >= thr).sum() * cell_km2)
     res["buildings_in_domain"] = int(len(b))
 
@@ -92,6 +129,10 @@ def build(depth_tif: Path, exposure: Path, pop_tif: Path, out: Path, meta: dict)
     a = a[["depth", "damage", "pop", "geometry"]]
     a.geometry = a.geometry.set_precision(1e-5)
     a.to_file(out / "buildings.geojson", driver="GeoJSON", COORDINATE_PRECISION=5)
+
+    if admin is not None:
+        res["areas"], res["districts"] = _by_ward(admin, out, depth, pop, transform, crs, (rows, cols), bd, hit,
+                                                  a["damage"].to_numpy(), thr, cell_km2)
 
     # overlays
     depth_rgba = _colorize(depth, DEPTH_COLORS)
@@ -115,7 +156,8 @@ if __name__ == "__main__":
     ap.add_argument("population", type=Path)
     ap.add_argument("out", type=Path)
     ap.add_argument("--meta", type=Path)
+    ap.add_argument("--admin", type=Path, help="ward polygons from admin.py")
     a = ap.parse_args()
-    s = build(a.depth, a.exposure, a.population, a.out, json.loads(a.meta.read_text()) if a.meta else {})
+    s = build(a.depth, a.exposure, a.population, a.out, json.loads(a.meta.read_text()) if a.meta else {}, a.admin)
     print({k: s[k] for k in ("people_affected", "buildings_affected", "flooded_area_km2", "max_depth_m",
                               "mean_damage_factor", "building_loss_equivalents")})

@@ -21,14 +21,16 @@ def impact_from_depth(
     threshold: float = 0.1,
     classes: list[float] = (0.1, 0.5, 1.0),
     vuln_class: str = "I",
+    bld_depth: np.ndarray | None = None,
 ) -> dict:
     """depth, pop: 2-D arrays on the same grid (m, people per cell).
     bld_rc: (row, col) grid index of each building centroid.
-    vuln_class: Englhardt et al. (2019) curve applied to every building (informal = "I")."""
+    vuln_class: Englhardt et al. (2019) curve applied to every building (informal = "I").
+    bld_depth: grid to sample building depths from (e.g. a neighbourhood maximum); defaults to `depth`."""
     d = np.nan_to_num(depth, nan=0.0)
     p = np.nan_to_num(pop, nan=0.0)
     rows, cols = bld_rc
-    bd = d[rows, cols]
+    bd = (d if bld_depth is None else np.nan_to_num(bld_depth, nan=0.0))[rows, cols]
     df = damage_factor(bd, vuln_class)
 
     edges = [*classes, None]
