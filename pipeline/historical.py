@@ -6,6 +6,7 @@ time with the state carried over, then fits a Gumbel distribution
 
 Outputs (small, committed so the daily job can use them):
   pipeline/ops/thresholds.json   2/5/20/50-year flows per reach
+  pipeline/ops/thresholds_gauges.json   the same for the virtual gauges (if the model has them)
   pipeline/ops/era5_clim.nc      day-of-year temperature/PET climatology
 and in <data_root>:
   products/historical_q.csv      simulated daily discharge per reach
@@ -62,6 +63,7 @@ def main() -> None:
     cfg = config()["historical"]
     ap = argparse.ArgumentParser()
     ap.add_argument("--years", nargs="*", type=int)
+    ap.add_argument("--run-name", default="historical", help="runs/<name>/<year>; use a new name after adding output points")
     args = ap.parse_args()
     years = args.years or list(range(int(cfg["start"][:4]), int(cfg["end"][:4]) + 1))
 
@@ -75,11 +77,12 @@ def main() -> None:
 
     grid = model_grid()
     state = None
-    q_parts = []
+    q_parts, g_parts = [], []
     for year, f_tp in zip(years, era5_files):
-        run_dir = paths.runs / "historical" / str(year)
+        run_dir = paths.runs / args.run_name / str(year)
         if (run_dir / "done").exists():  # written only after a successful run
             q_parts.append(wflow.read_output(run_dir))
+            g_parts.append(wflow.read_output(run_dir, "Qv"))
             state = run_dir / "outstates.nc"
             continue
         f_p = chirps.fetch_years([year], paths.forcing / "chirps", end=end)[0]
@@ -96,6 +99,7 @@ def main() -> None:
         toml = wflow.write_run(run_dir, days[0].date(), days[-1].date(), forcing, state, save_state=True)
         wflow.run([toml])
         q_parts.append(wflow.read_output(run_dir))
+        g_parts.append(wflow.read_output(run_dir, "Qv"))
         state = run_dir / "outstates.nc"
         (run_dir / "done").touch()
         forcing.unlink()  # ~200 MB per year; regenerated if needed
@@ -109,6 +113,12 @@ def main() -> None:
 
     thr = thresholds(q, reaches)
     (OPS / "thresholds.json").write_text(json.dumps(thr, indent=1))
+    g = pd.concat(g_parts)
+    if g.shape[1]:
+        g.to_csv(paths.products / "historical_q_gauges.csv", float_format="%.2f")
+        thr_g = thresholds(g, {c: str(c) for c in g.columns})
+        (OPS / "thresholds_gauges.json").write_text(json.dumps(thr_g, indent=1))
+        log.info("thresholds for %d virtual gauges", g.shape[1])
     log.info("thresholds: %s", thr["reaches"])
 
     # Seed the daily warm-state run with the end-of-period state.

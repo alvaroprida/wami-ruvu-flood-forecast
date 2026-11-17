@@ -1,6 +1,6 @@
 import { setWorkerUrl } from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Map, { Layer, Popup, Source, type MapLayerMouseEvent } from 'react-map-gl/maplibre'
 
 // MapLibre 6 ships its worker as a separate module that Vite won't find on its own.
@@ -65,8 +65,29 @@ export function RiverMap({ network, basins, streams, forecast, selectedId, onSel
     1000, 2, 20000, 3.5, 45000, 5,
   ] as unknown as number
 
+  // Virtual river gauges, coloured by today's alert level (forecast.gauges, keyed "g<id>").
+  const [gauges, setGauges] = useState<{ type: 'FeatureCollection'; features: { properties: Record<string, number | string>; geometry: unknown; type: 'Feature' }[] }>()
+  const [gHover, setGHover] = useState<{ lng: number; lat: number; p: Record<string, number | string> } | null>(null)
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}data/gauges.geojson`).then((r) => (r.ok ? r.json() : undefined)).then(setGauges).catch(() => undefined)
+  }, [])
+  const gaugesGeo = useMemo(() => gauges && forecast.gauges && {
+    ...gauges,
+    features: gauges.features.map((f) => {
+      const g = forecast.gauges![`g${f.properties.id}`]
+      return { ...f, properties: { ...f.properties, level: g?.alert_level ?? 0, peak: g?.peak_q50 ?? 0,
+        p2: g?.prob_exceed.rp2 ?? 0, p5: g?.prob_exceed.rp5 ?? 0, p20: g?.prob_exceed.rp20 ?? 0 } }
+    }),
+  }, [gauges, forecast])
+
   const onMove = (e: MapLayerMouseEvent) => {
     const f = e.features?.[0]
+    if (f?.layer.id === 'gauges') {
+      setHover(null)
+      setGHover({ lng: e.lngLat.lng, lat: e.lngLat.lat, p: f.properties })
+      return
+    }
+    setGHover(null)
     setHover(f ? { id: f.properties.id, lng: e.lngLat.lng, lat: e.lngLat.lat } : null)
   }
 
@@ -78,7 +99,7 @@ export function RiverMap({ network, basins, streams, forecast, selectedId, onSel
       <Map
         initialViewState={{ bounds: BOUNDS, fitBoundsOptions: { padding: 24 } }}
         mapStyle={dark ? BASEMAP.dark : BASEMAP.light}
-        interactiveLayerIds={['river-hit', 'outlets']}
+        interactiveLayerIds={['river-hit', 'outlets', 'gauges']}
         cursor={hover ? 'pointer' : 'grab'}
         onMouseMove={onMove}
         onMouseLeave={() => setHover(null)}
@@ -167,6 +188,29 @@ export function RiverMap({ network, basins, streams, forecast, selectedId, onSel
             }}
           />
         </Source>
+
+        {gaugesGeo && (
+          <Source id="gauges" type="geojson" data={gaugesGeo}>
+            <Layer id="gauges" type="circle" paint={{
+              'circle-radius': 4.5,
+              'circle-color': levelExpr,
+              'circle-stroke-color': palette.surface,
+              'circle-stroke-width': 1.5,
+            }} />
+          </Source>
+        )}
+        {gHover && (
+          <Popup longitude={gHover.lng} latitude={gHover.lat} closeButton={false} offset={10} maxWidth="240px">
+            <div className="font-medium">River gauge {gHover.p.id}</div>
+            <div className="mb-1 text-ink-2">{gHover.p.basin} basin · {Number(gHover.p.upstream_area_km2).toLocaleString('en-GB')} km²</div>
+            <AlertBadge level={Number(gHover.p.level) as AlertLevel} />
+            <div className="tabular mt-1 text-ink-2">
+              Peak (median) {formatQ(Number(gHover.p.peak))} m³/s
+              <br />
+              P(&gt;2 / 5 / 20-yr) {formatPct(Number(gHover.p.p2))} / {formatPct(Number(gHover.p.p5))} / {formatPct(Number(gHover.p.p20))}
+            </div>
+          </Popup>
+        )}
 
         {/* Labels drawn above the rivers so they are never hidden under a reach. */}
         <Source id="basin-labels" type="geojson" data={basins}>

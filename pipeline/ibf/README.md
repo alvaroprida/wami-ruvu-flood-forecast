@@ -40,22 +40,26 @@ products are committed under `web/public/data/ibf/demo/`.
 
 ## Demo forecast (lead times)
 
-The site's first IbF view replays a real forecast: the ECMWF ENS run issued on **15 January 2024**
-(archived open data, 0.4°, 50 members) through Wflow, then the median and 95th-percentile inflows through
-SFINCS with 3-hourly maps. Each lead day's maximum water level becomes a 30 m depth map, and impacts are
+The site's first IbF view replays a real forecast: the ECMWF ENS run issued on **3 January 2024**, just
+before the January 2024 flood rose (archived open data, 0.4°, 50 members), through Wflow, then the median and
+95th-percentile inflows through SFINCS with 3-hourly maps. SFINCS is spun up on the observed-rainfall discharge
+of the 7 days before the issue date, so the floodplain is not pre-filled at the forecast's first value. The
+95th percentile catches the 7–8 January peak about 5 days ahead; the median underestimates it. Each lead day's maximum water level becomes a 30 m depth map, and impacts are
 computed per building, ward and day, so the slider shows how the forecast impact develops.
 
 ```bash
 # main environment (Wflow): warm state on CHIRPS up to 14 Jan, then the 50 members
-python pipeline/ibf/hindcast_forecast.py 2024-01-15
+python pipeline/ibf/hindcast_forecast.py 2024-01-03
 # hydromt-sfincs environment: SFINCS per scenario (Docker on macOS) + per-day products
-python pipeline/ibf/run_forecast_demo.py 2024-01-15
+python pipeline/ibf/run_forecast_demo.py 2024-01-03
 ```
 
 Products in `web/public/data/ibf/forecast/`: per-day depth and affected-population overlays per scenario,
 a dimmed all-population layer, ward tables per day (`wards.json`), and **all building footprints** in one
 PMTiles file (`buildings.pmtiles`, made with tippecanoe) whose properties hold the depth of every
-scenario and day, so the map restyles them in the browser without reloading.
+scenario and day, so the map restyles them in the browser without reloading. `gauges.json` holds the forecast
+discharge of every river gauge (10 forecast points + 40 virtual gauges) with its return-period thresholds, for
+the gauge layer and the gauge timeline.
 
 ## Live (CI)
 

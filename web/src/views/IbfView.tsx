@@ -3,7 +3,7 @@ import { ForecastImpactView } from '../components/ForecastImpactView'
 import { ImpactView } from '../components/ImpactView'
 
 const SUBTABS = [
-  { id: 'forecast', label: 'Demo forecast (15 Jan 2024)', hint: 'A past ensemble forecast, impacts for every lead day' },
+  { id: 'forecast', label: 'Demo forecast', hint: 'A past ensemble forecast, impacts for every lead day' },
   { id: 'demo', label: 'Event reconstruction', hint: 'The same flood rebuilt from observed (CHIRPS) rainfall' },
   { id: 'live', label: 'Live', hint: 'Impact of the latest hazard forecast' },
 ] as const

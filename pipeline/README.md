@@ -38,12 +38,13 @@ python pipeline/static/fetch_static.py        # FABDEM + flow network, SoilGrids
 python pipeline/build/forecast_points.py      # one point per reach, 5 km upstream of its outlet
 python pipeline/build/build_model.py          # hydromt build wflow_sbm
 python pipeline/build/build_reaches.py        # site river lines traced on the model's flow network
+python pipeline/build/make_gauges.py          # 40 virtual gauges (>= 1,000 km2, ~20 km apart) added to the model
 ```
 
 ## Step 2 – historical run and thresholds
 
 ```bash
-python pipeline/historical.py                 # CHIRPS final + ERA5, 2001–2025
+python pipeline/historical.py                 # CHIRPS final + ERA5, 2001–2025; thresholds for points and gauges
 ```
 
 Downloads are resumable. The first year is spin-up and excluded from the annual maxima.

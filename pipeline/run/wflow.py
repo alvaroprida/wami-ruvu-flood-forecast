@@ -21,6 +21,7 @@ from common import PIPELINE, log, paths
 
 JULIA_PROJECT = PIPELINE / "julia"
 GAUGE_MAP = "gauges_forecast_points"
+VIRTUAL_MAP = "gauges_virtual"     # optional, added by build/make_gauges.py
 
 
 def write_run(
@@ -45,6 +46,8 @@ def write_run(
         "atmosphere_air__temperature": "temp",
     }
     cfg["input"]["path_static"] = str(paths.model / "staticmaps.nc")
+    if _has_virtual():
+        cfg["input"][VIRTUAL_MAP] = VIRTUAL_MAP
     cfg["model"]["cold_start__flag"] = state_in is None
     cfg["state"]["path_input"] = str(state_in or paths.model / "instate" / "instates.nc")
     cfg["state"]["path_output"] = str(run_dir / "outstates.nc") if save_state else str(run_dir / "unused_outstates.nc")
@@ -52,7 +55,9 @@ def write_run(
     cfg["output"] = {
         "csv": {
             "path": "output.csv",
-            "column": [{"header": "Q", "map": GAUGE_MAP, "parameter": "river_water__volume_flow_rate"}],
+            "column": [{"header": "Q", "map": GAUGE_MAP, "parameter": "river_water__volume_flow_rate"},
+                       *([{"header": "Qv", "map": VIRTUAL_MAP, "parameter": "river_water__volume_flow_rate"}]
+                         if _has_virtual() else [])],
         }
     }
     path = run_dir / "wflow_sbm.toml"
@@ -68,10 +73,18 @@ def run(tomls: list[Path]) -> None:
     subprocess.run(cmd, check=True)
 
 
-def read_output(run_dir: Path) -> pd.DataFrame:
-    """Daily discharge [m3/s], index = day, columns = forecast point ids."""
+def _has_virtual() -> bool:
+    import xarray as xr
+
+    with xr.open_dataset(paths.model / "staticmaps.nc") as ds:
+        return VIRTUAL_MAP in ds
+
+
+def read_output(run_dir: Path, header: str = "Q") -> pd.DataFrame:
+    """Daily discharge [m3/s], index = day, columns = point ids.
+    header "Q": forecast points; "Qv": virtual gauges."""
     df = pd.read_csv(run_dir / "output.csv", parse_dates=["time"], index_col="time")
-    df = df[[c for c in df.columns if c.startswith("Q")]]
+    df = df[[c for c in df.columns if c.rsplit("_", 1)[0] == header]]
     df.columns = [int(c.rsplit("_", 1)[-1]) for c in df.columns]
     df.index = (df.index - pd.Timedelta(days=1)).normalize()
     return df.sort_index(axis=1)

@@ -157,16 +157,38 @@ def forecast(run, grid: xr.Dataset, state) -> tuple[dict[str, np.ndarray], pd.Da
     wflow.run(tomls)
     reaches = _reach_names()
     q = {r: np.stack([wflow.read_output(t.parent)[pid].to_numpy() for t in tomls]) for pid, r in reaches.items()}
+    # Virtual gauges (if the model has them): same members, keyed "g<id>".
+    gouts = [wflow.read_output(t.parent, "Qv") for t in tomls]
+    gq = {f"g{c}": np.stack([g[c].to_numpy() for g in gouts]) for c in gouts[0].columns} if gouts[0].shape[1] else {}
     # Day-1 ensemble mean: last-resort forcing if HRES is unavailable tomorrow.
     precip.isel(time=0).mean("number").to_netcdf(paths.state / "ens_day1_mean.nc")
-    return q, days, precip
+    return q, days, precip, gq
 
 
 def iso(t) -> str:
     return pd.Timestamp(t).strftime("%Y-%m-%dT%H:%MZ")
 
 
-def products(run, days, q: dict, precip: xr.DataArray, history: pd.DataFrame, grid, out_dir) -> None:
+def gauge_summaries(gq: dict, rule) -> dict:
+    """Alert level per virtual gauge, with the same rule as the forecast points."""
+    path = OPS / "thresholds_gauges.json"
+    if not gq or not path.exists():
+        return {}
+    thr = json.loads(path.read_text())["reaches"]
+    out = {}
+    for gid, members in gq.items():
+        t = thr.get(gid[1:])
+        if t is None:
+            continue
+        peaks = members.max(axis=1)
+        prob = {k: round(float((peaks > v).mean()), 2) for k, v in t.items()}
+        level = next((lvl for lvl, rp, share in rule if prob[f"rp{rp}"] >= share), 0)
+        out[gid] = {"alert_level": level, "prob_exceed": prob,
+                    "peak_q50": round(float(np.percentile(members, 50, axis=0).max()), 1)}
+    return out
+
+
+def products(run, days, q: dict, precip: xr.DataArray, history: pd.DataFrame, grid, out_dir, gq: dict | None = None) -> None:
     cfg = config()["forecast"]
     thr = json.loads((OPS / "thresholds.json").read_text())["reaches"]
     masks = upstream_masks(grid)
@@ -220,6 +242,7 @@ def products(run, days, q: dict, precip: xr.DataArray, history: pd.DataFrame, gr
         "lead_days": cfg["lead_days"],
         "alert_rule": [{"level": lvl, "return_period": rp, "min_probability": s} for lvl, rp, s in rule],
         "reaches": summaries,
+        "gauges": gauge_summaries(gq or {}, rule),
     }, indent=1))
     log.info("products written to %s", out_dir)
 
@@ -233,8 +256,8 @@ def main() -> None:
     log.info("latest complete ENS run: %s", run)
     grid = model_grid()
     state, history = warm_state(run.date(), grid)
-    q, days, precip = forecast(run, grid, state)
-    products(run, days, q, precip, history, grid, Path(args.out))
+    q, days, precip, gq = forecast(run, grid, state)
+    products(run, days, q, precip, history, grid, Path(args.out), gq)
 
 
 if __name__ == "__main__":

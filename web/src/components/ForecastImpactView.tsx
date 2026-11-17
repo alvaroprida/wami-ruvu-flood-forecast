@@ -24,14 +24,25 @@ interface Manifest {
   domain: { bbox: [number, number, number, number] }
   scenarios: { id: string; label: string; dir: string; hydrograph: Record<string, number[]> }[]
   corners: [number, number][]; totals: Record<string, Total[]>
-  flood_depth_threshold_m: number; depth_legend_m: number[]; pop_legend_per_ha: number[]
+  flood_depth_threshold_m: number; depth_legend_m: number[]; pop_legend_per_ha: number[]; has_gauges?: boolean
+  observed?: { times: string[]; series: Record<string, number[]> }
   vulnerability: { source: string; class: string }; buildings_in_domain: number; population_in_domain: number
 }
-type Show = { depth: boolean; popHit: boolean; popAll: boolean; buildings: boolean; wards: boolean }
+type Show = { depth: boolean; popHit: boolean; popAll: boolean; buildings: boolean; wards: boolean; gauges: boolean }
 interface WardGeo {
   type: 'FeatureCollection'
   features: { type: 'Feature'; properties: Record<string, unknown>; geometry: unknown }[]
 }
+interface Gauge { id: string; kind: 'point' | 'virtual'; name: string; basin: string; lonlat: [number, number]; upa: number
+  thr: { rp2: number; rp5: number; rp20: number; rp50: number } }
+interface GaugeData { gauges: Gauge[]; q: Record<string, Record<string, number[]>> }
+const LEVELS = [
+  { label: 'Below 2-year flow', color: 'var(--river)' },
+  { label: '2-year flow', color: 'var(--status-warning)' },
+  { label: '5-year flow', color: 'var(--status-serious)' },
+  { label: '20-year flow', color: 'var(--status-critical)' },
+]
+const levelOf = (q: number, t: Gauge['thr']) => (q >= t.rp20 ? 3 : q >= t.rp5 ? 2 : q >= t.rp2 ? 1 : 0)
 interface Ward { id: number; ward: string; district: string; pop_total: number; buildings_total: number }
 interface WardRow { scenario: string; day: number; id: number; people: number; buildings: number; loss_equiv: number }
 type Metric = 'people' | 'buildings' | 'loss_equiv'
@@ -49,13 +60,14 @@ export function ForecastImpactView() {
   const [m, setM] = useState<Manifest>()
   const [wardData, setWardData] = useState<{ wards: Ward[]; rows: WardRow[] }>()
   const [admin, setAdmin] = useState<WardGeo>()
+  const [gaugeData, setGaugeData] = useState<GaugeData>()
   const [scen, setScen] = useState('p50')
   const [day, setDay] = useState(1)
   const [metric, setMetric] = useState<Metric>('people')
   const [playing, setPlaying] = useState(false)
   const [basemap, setBasemap] = useState<Basemap>(dark ? 'dark' : 'light')
-  const [show, setShow] = useState<Show>({ depth: true, popHit: true, popAll: true, buildings: true, wards: true })
-  const [hover, setHover] = useState<{ lng: number; lat: number; kind: 'b' | 'w'; p: Record<string, unknown> } | null>(null)
+  const [show, setShow] = useState<Show>({ depth: true, popHit: true, popAll: true, buildings: true, wards: true, gauges: true })
+  const [hover, setHover] = useState<{ lng: number; lat: number; kind: 'b' | 'w' | 'g'; p: Record<string, unknown> } | null>(null)
   const [selWard, setSelWard] = useState<number | null>(null)
 
   useEffect(() => {
@@ -64,6 +76,7 @@ export function ForecastImpactView() {
       // Open on the day with the largest median impact.
       const t = x.totals.p50 ?? Object.values(x.totals)[0]
       setDay(t.reduce((a, b) => (b.people > a.people ? b : a)).day)
+      if (x.has_gauges) fetch(`${DATA}/gauges.json`).then((r) => r.json()).then(setGaugeData)
     })
     fetch(`${DATA}/wards.json`).then((r) => r.json()).then(setWardData)
     fetch(`${DATA}/admin.geojson`).then((r) => r.json()).then(setAdmin)
@@ -89,6 +102,15 @@ export function ForecastImpactView() {
     }),
   }, [admin, dayRows])
 
+  const gaugesGeo = useMemo(() => gaugeData && {
+    type: 'FeatureCollection' as const,
+    features: gaugeData.gauges.map((g) => {
+      const q = gaugeData.q[scen]?.[g.id]?.[day - 1] ?? 0
+      return { type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: g.lonlat },
+        properties: { id: g.id, name: g.name, kind: g.kind, q, level: levelOf(q, g.thr), rp2: g.thr.rp2, rp5: g.thr.rp5, rp20: g.thr.rp20 } }
+    }),
+  }, [gaugeData, scen, day])
+
   if (!m || !wardData || !wardsGeo) return <div className="p-8 text-ink-3">Loading forecast impact…</div>
 
   const total = m.totals[scen][day - 1]
@@ -103,7 +125,7 @@ export function ForecastImpactView() {
 
   const onMove = (ev: MapLayerMouseEvent) => {
     const f = ev.features?.[0]
-    setHover(f ? { lng: ev.lngLat.lng, lat: ev.lngLat.lat, kind: f.layer.id === 'bld-hit' ? 'b' : 'w', p: f.properties } : null)
+    setHover(f ? { lng: ev.lngLat.lng, lat: ev.lngLat.lat, kind: f.layer.id === 'gauges' ? 'g' : f.layer.id === 'bld-hit' ? 'b' : 'w', p: f.properties } : null)
   }
 
   return (
@@ -165,7 +187,7 @@ export function ForecastImpactView() {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="relative h-[640px] overflow-hidden rounded-xl border border-line">
           <Map initialViewState={{ bounds: [[w, s], [e, n]], fitBoundsOptions: { padding: 20 } }} mapStyle={BASEMAPS[basemap].style as string}
-            interactiveLayerIds={['bld-hit', 'ward-fill']} onMouseMove={onMove} onMouseLeave={() => setHover(null)}
+            interactiveLayerIds={['gauges', 'bld-hit', 'ward-fill']} onMouseMove={onMove} onMouseLeave={() => setHover(null)}
             onClick={(ev) => { const f = ev.features?.find((x) => x.layer.id === 'ward-fill'); if (f) setSelWard(f.properties.id as number) }}
             attributionControl={{ compact: true, customAttribution: 'Buildings: Overture Maps · Population: WorldPop · Wards: geoBoundaries' }}>
             <NavigationControl position="top-right" />
@@ -197,11 +219,27 @@ export function ForecastImpactView() {
               <Layer id="bld-hit" type="fill" source-layer="buildings" filter={hitFilter} layout={{ visibility: show.buildings ? 'visible' : 'none' }}
                 paint={{ 'fill-color': depthExpr, 'fill-opacity': 1, 'fill-outline-color': '#08306b' }} />
             </Source>
+            {gaugesGeo && (
+              <Source id="gauges" type="geojson" data={gaugesGeo}>
+                <Layer id="gauges" type="circle" layout={{ visibility: show.gauges ? 'visible' : 'none' }}
+                  paint={{
+                    'circle-radius': ['case', ['==', ['get', 'kind'], 'point'], 7, 5.5] as unknown as number,
+                    'circle-color': ['match', ['get', 'level'], 3, palette['status-critical'], 2, palette['status-serious'], 1, palette['status-warning'], palette.river] as unknown as string,
+                    'circle-stroke-color': palette.surface, 'circle-stroke-width': 2,
+                  }} />
+              </Source>
+            )}
             <Layer id="ward-line" type="line" source="wards"
               paint={{ 'line-color': palette['text-secondary'], 'line-width': ['case', ['==', ['get', 'id'], selWard ?? -1], 2.5, 0.8] as unknown as number }} />
             {hover && (
               <Popup longitude={hover.lng} latitude={hover.lat} closeButton={false} offset={10} maxWidth="240px">
-                {hover.kind === 'b' ? (
+                {hover.kind === 'g' ? (
+                  <div className="text-sm">
+                    <div className="font-medium">{String(hover.p.name)} · day {day}</div>
+                    <div className="tabular text-ink-2">{fmt(Number(hover.p.q))} m³/s · {LEVELS[Number(hover.p.level)].label.toLowerCase()}</div>
+                    <div className="tabular text-xs text-ink-3">2 / 5 / 20-yr: {fmt(Number(hover.p.rp2))} / {fmt(Number(hover.p.rp5))} / {fmt(Number(hover.p.rp20))}</div>
+                  </div>
+                ) : hover.kind === 'b' ? (
                   <div className="text-sm">
                     <div className="font-medium">Flooded building · day {day}</div>
                     <div className="text-ink-2">depth {(Number(hover.p[key] ?? 0) / 100).toFixed(2)} m · ~{Number(hover.p.pop).toFixed(1)} people</div>
@@ -227,6 +265,7 @@ export function ForecastImpactView() {
 
       <WardHeatmap m={m} rows={wardData.rows} wards={wardData.wards} scen={scen} metric={metric} day={day}
         onPick={(d, id) => { setDay(d); setSelWard(id) }} palette={palette} />
+      {gaugeData && <GaugeTimeline data={gaugeData} m={m} scen={scen} day={day} onDay={setDay} palette={palette} />}
       <WardTable wards={wardData.wards} dayRows={dayRows} selWard={selWard} onSelect={setSelWard} day={day} />
     </div>
   )
@@ -257,6 +296,10 @@ function MapLegend({ m, show, setShow, basemap, setBasemap, metric }: {
       {ramp(POP_COLORS, m.pop_legend_per_ha.map(String))}
       {row('popAll', 'All population (grey, reference)')}
       {row('wards', `Wards: ${METRIC[metric].label.toLowerCase()}`)}
+      {row('gauges', 'River gauges: threshold reached')}
+      <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+        {LEVELS.map((l) => <span key={l.label} className="flex items-center gap-1 text-[10px] text-ink-3"><i className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: l.color }} />{l.label}</span>)}
+      </div>
       <select value={basemap} onChange={(ev) => setBasemap(ev.target.value as Basemap)} className="mt-1 w-full rounded border border-line bg-surface px-1 py-0.5 text-ink">
         {(Object.keys(BASEMAPS) as Basemap[]).map((b) => <option key={b} value={b}>{BASEMAPS[b].label} basemap</option>)}
       </select>
@@ -298,8 +341,12 @@ function ImpactOverTime({ m, day, onDay, palette: p }: { m: Manifest; day: numbe
 }
 
 function InflowChart({ m, day, palette: p }: { m: Manifest; day: number; palette: Pal }) {
-  const days = m.days.map((d) => formatDay(d))
   const reaches = Object.keys(m.scenarios[0].hydrograph)
+  // Spin-up week on observed rainfall (grey), then the forecast.
+  const obsT = m.observed?.times ?? []
+  const nObs = obsT.length
+  const days = [...obsT, ...m.days].map((d) => formatDay(d))
+  const obsSum = obsT.map((_, k) => reaches.reduce((a, r) => a + (m.observed!.series[r]?.[k] ?? 0), 0))
   const option: EChartsOption = {
     animation: false,
     title: { text: 'Forecast inflow to the floodplain (m³/s)', left: 0, textStyle: { fontSize: 13, fontWeight: 500, color: p['text-primary'] } },
@@ -308,18 +355,22 @@ function InflowChart({ m, day, palette: p }: { m: Manifest; day: number; palette
     legend: { left: 0, top: 30, textStyle: { color: p['text-secondary'], fontSize: 11 } },
     xAxis: { type: 'category', data: days, ...axisStyle(p), axisLabel: { color: p['text-muted'], interval: 3 } },
     yAxis: { type: 'value', ...axisStyle(p), axisLine: { show: false } },
-    series: m.scenarios.map((sc, i) => ({
-      type: 'line', name: sc.label, symbol: 'none', color: SCEN_COLORS[sc.id], lineStyle: { width: 2 },
-      data: days.map((_, k) => reaches.reduce((a, r) => a + sc.hydrograph[r][k], 0)),
-      ...(i === 0 ? { markLine: { silent: true, symbol: 'none', data: [{ xAxis: day - 1 }], lineStyle: { color: p['text-muted'], type: 'solid' }, label: { show: false } } } : {}),
-    })),
+    series: [
+      ...(nObs ? [{ type: 'line' as const, name: 'Before issue (observed rainfall)', symbol: 'none', color: p.history,
+        lineStyle: { width: 2 }, data: [...obsSum, ...m.days.map(() => null)] }] : []),
+      ...m.scenarios.map((sc, i) => ({
+        type: 'line' as const, name: sc.label, symbol: 'none', color: SCEN_COLORS[sc.id], lineStyle: { width: 2 },
+        data: [...obsT.map(() => null), ...m.days.map((_, k) => reaches.reduce((a, r) => a + sc.hydrograph[r][k], 0))],
+        ...(i === 0 ? { markLine: { silent: true, symbol: 'none', data: [{ xAxis: nObs + day - 1 }], lineStyle: { color: p['text-muted'], type: 'solid' as const }, label: { show: false } } } : {}),
+      })),
+    ],
   }
   const rain: EChartsOption = {
     animation: false,
     title: { text: 'Basin rainfall forecast, ensemble median (mm/day)', left: 0, textStyle: { fontSize: 13, fontWeight: 500, color: p['text-primary'] } },
     grid: { left: 56, right: 12, top: 32, bottom: 24 },
     tooltip: { trigger: 'axis', ...tip(p) },
-    xAxis: { type: 'category', data: days, ...axisStyle(p), axisLabel: { color: p['text-muted'], interval: 3 } },
+    xAxis: { type: 'category', data: m.days.map((d) => formatDay(d)), ...axisStyle(p), axisLabel: { color: p['text-muted'], interval: 3 } },
     yAxis: { type: 'value', ...axisStyle(p), axisLine: { show: false } },
     series: [{ type: 'bar', data: m.rain_mm, barMaxWidth: 16, color: p['series-1'], itemStyle: { borderRadius: [4, 4, 0, 0] } }],
   }
@@ -404,6 +455,47 @@ function WardTable({ wards, dayRows, selWard, onSelect, day }: {
           </tbody>
         </table>
       </div>
+    </section>
+  )
+}
+
+function GaugeTimeline({ data, m, scen, day, onDay, palette: p }: {
+  data: GaugeData; m: Manifest; scen: string; day: number; onDay: (d: number) => void; palette: Pal
+}) {
+  const q = data.q[scen]
+  // Forecast points always; virtual gauges only if they reach the 2-year flow on some day. Downstream at the bottom.
+  const rows = data.gauges
+    .filter((g) => g.kind === 'point' || q[g.id]?.some((v) => v >= g.thr.rp2))
+    .sort((a, b) => a.basin.localeCompare(b.basin) || a.upa - b.upa)
+  const colors = [p.river, p['status-warning'], p['status-serious'], p['status-critical']]
+  const cells = rows.flatMap((g, i) => (q[g.id] ?? []).map((v, d) => [d, i, levelOf(v, g.thr), v]))
+  const option: EChartsOption = {
+    animation: false,
+    grid: { left: 190, right: 16, top: 8, bottom: 40 },
+    tooltip: { ...tip(p), formatter: (x: unknown) => {
+      const v = (x as { value: number[] }).value
+      const g = rows[v[1]]
+      return `${g.name} (${g.basin}) · lead day ${v[0] + 1}<br/><b>${fmt(v[3])} m³/s</b> · ${LEVELS[v[2]].label.toLowerCase()}`
+    } },
+    xAxis: { type: 'category', data: m.days.map((_, i) => i + 1), name: 'lead day', nameLocation: 'middle', nameGap: 26,
+      nameTextStyle: { color: p['text-muted'] }, ...axisStyle(p), splitLine: { show: false } },
+    yAxis: { type: 'category', data: rows.map((g) => `${g.name} · ${g.basin} · ${fmt(g.upa)} km²`), ...axisStyle(p), splitLine: { show: false },
+      axisLabel: { color: p['text-secondary'], fontSize: 11 } },
+    visualMap: { type: 'piecewise', dimension: 2, show: false, pieces: colors.map((c, i) => ({ value: i, color: c })) },
+    series: [{ type: 'heatmap', data: cells, itemStyle: { borderColor: p.surface, borderWidth: 2 },
+      markLine: { silent: true, symbol: 'none', data: [{ xAxis: day - 1 }], lineStyle: { color: p['text-primary'], width: 1.5, type: 'solid' }, label: { show: false } } }],
+  }
+  return (
+    <section className="rounded-xl border border-line bg-surface p-4">
+      <h2 className="text-base font-semibold text-ink">River gauges: when thresholds are reached</h2>
+      <p className="mb-2 text-xs text-ink-3">
+        Forecast discharge ({m.scenarios.find((s) => s.id === scen)!.label.toLowerCase()}) against each gauge's return-period flows from the
+        2001–2025 simulation. Forecast points and the virtual gauges that reach the 2-year flow; click a cell to show that day.
+      </p>
+      <div className="mb-1 flex flex-wrap gap-3 text-xs text-ink-2">
+        {LEVELS.map((l, i) => <span key={l.label} className="flex items-center gap-1"><i className="inline-block h-2.5 w-3 rounded-sm" style={{ background: colors[i] }} />{l.label}</span>)}
+      </div>
+      <ReactECharts option={option} style={{ height: 22 * rows.length + 60 }} notMerge onEvents={{ click: (e: { value: number[] }) => onDay(e.value[0] + 1) }} />
     </section>
   )
 }

@@ -27,6 +27,7 @@ export interface Forecast {
   lead_days: number
   alert_rule: { level: AlertLevel; return_period: number; min_probability: number }[]
   reaches: Record<string, ReachSummary>
+  gauges?: Record<string, { alert_level: AlertLevel; prob_exceed: Thresholds; peak_q50: number }>
 }
 
 export interface ReachDetail {
