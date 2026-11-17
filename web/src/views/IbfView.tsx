@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
+import { ForecastImpactView } from '../components/ForecastImpactView'
 import { ImpactView } from '../components/ImpactView'
 
 const SUBTABS = [
-  { id: 'demo', label: 'Demo event', hint: 'A past flood run through the whole impact chain' },
+  { id: 'forecast', label: 'Demo forecast (15 Jan 2024)', hint: 'A past ensemble forecast, impacts for every lead day' },
+  { id: 'demo', label: 'Event reconstruction', hint: 'The same flood rebuilt from observed (CHIRPS) rainfall' },
   { id: 'live', label: 'Live', hint: 'Impact of the latest hazard forecast' },
 ] as const
 type SubId = (typeof SUBTABS)[number]['id']
 
-const fromHash = (): SubId => (location.hash === '#ibf/live' ? 'live' : 'demo')
+const fromHash = (): SubId =>
+  location.hash === '#ibf/live' ? 'live' : location.hash === '#ibf/demo' ? 'demo' : 'forecast'
 
 export default function IbfView() {
   const [sub, setSub] = useState<SubId>(fromHash)
@@ -36,7 +39,7 @@ export default function IbfView() {
           </a>
         ))}
       </div>
-      <ImpactView key={sub} mode={sub} />
+      {sub === 'forecast' ? <ForecastImpactView /> : <ImpactView key={sub} mode={sub} />}
     </>
   )
 }

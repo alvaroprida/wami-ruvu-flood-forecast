@@ -23,11 +23,14 @@ def latest_run(client: Client) -> datetime:
     return client.latest(stream="enfo", type="pf", param="tp", step=360, time=0)
 
 
-def fetch(run: datetime, lead_days: int, source: str = "ecmwf") -> xr.DataArray:
+def fetch(run: datetime, lead_days: int, source: str = "ecmwf", resol: str = "0p25") -> xr.DataArray:
     """Daily precipitation [mm/day], dims (number, time, lat, lon).
 
     ``time`` labels the UTC day the total belongs to; number = member 1-50.
+    ``resol``: "0p25" (since Feb 2024) or "0p4-beta" for older runs from the
+    cloud archives (source "google", "azure" or "aws").
     """
+    pad = 0.4 if resol.startswith("0p4") else 0.25
     client = Client(source=source)
     steps = [24 * d for d in range(1, lead_days + 1)]
     w, s, e, n = bbox()
@@ -37,10 +40,10 @@ def fetch(run: datetime, lead_days: int, source: str = "ecmwf") -> xr.DataArray:
         target = Path(tmp) / "tp.grib2"
         client.retrieve(
             date=run.date(), time=run.hour, stream="enfo", type="pf",
-            param="tp", step=steps, target=str(target),
+            param="tp", step=steps, resol=resol, target=str(target),
         )
         ds = xr.open_dataset(target, engine="cfgrib", backend_kwargs={"indexpath": ""})
-        tp = ds["tp"].sel(latitude=slice(n + 0.25, s - 0.25), longitude=slice(w - 0.25, e + 0.25)).load()
+        tp = ds["tp"].sel(latitude=slice(n + pad, s - pad), longitude=slice(w - pad, e + pad)).load()
     if "step" not in tp.dims:
         tp = tp.expand_dims("step")
     acc = tp.transpose("number", "step", "latitude", "longitude")  # accumulated [m]

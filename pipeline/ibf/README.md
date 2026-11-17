@@ -38,6 +38,25 @@ python pipeline/ibf/run_ibf.py demo --hydro <data_root>/ibf/<name>/wflow_q.csv -
 The event window is ±`peak-days` around the largest summed inflow in the search window. The demo
 products are committed under `web/public/data/ibf/demo/`.
 
+## Demo forecast (lead times)
+
+The site's first IbF view replays a real forecast: the ECMWF ENS run issued on **15 January 2024**
+(archived open data, 0.4°, 50 members) through Wflow, then the median and 95th-percentile inflows through
+SFINCS with 3-hourly maps. Each lead day's maximum water level becomes a 30 m depth map, and impacts are
+computed per building, ward and day, so the slider shows how the forecast impact develops.
+
+```bash
+# main environment (Wflow): warm state on CHIRPS up to 14 Jan, then the 50 members
+python pipeline/ibf/hindcast_forecast.py 2024-01-15
+# hydromt-sfincs environment: SFINCS per scenario (Docker on macOS) + per-day products
+python pipeline/ibf/run_forecast_demo.py 2024-01-15
+```
+
+Products in `web/public/data/ibf/forecast/`: per-day depth and affected-population overlays per scenario,
+a dimmed all-population layer, ward tables per day (`wards.json`), and **all building footprints** in one
+PMTiles file (`buildings.pmtiles`, made with tippecanoe) whose properties hold the depth of every
+scenario and day, so the map restyles them in the browser without reloading.
+
 ## Live (CI)
 
 `.github/workflows/ibf-live.yml` runs after the daily forecast. If no inflow reach is alerted it only

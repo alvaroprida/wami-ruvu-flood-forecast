@@ -58,8 +58,10 @@ def snap_to_lowest(dem_tif: Path, lon: float, lat: float, radius_m: float = SNAP
     return x, y
 
 
-def build(domain: str, q: pd.DataFrame, dem: Path, root: Path, res_m: float | None = None) -> SfincsModel:
-    """q: discharge [m3/s], columns = inflow reach ids, datetime index."""
+def build(domain: str, q: pd.DataFrame, dem: Path, root: Path, res_m: float | None = None,
+          map_every_s: int = 6 * 3600) -> SfincsModel:
+    """q: discharge [m3/s], columns = inflow reach ids, datetime index.
+    map_every_s: interval of the water-level maps (3 h for per-lead-day flood maps)."""
     cfg = load_config()
     dom = cfg["domains"][domain]
     res = res_m or cfg["res_m"]
@@ -75,7 +77,7 @@ def build(domain: str, q: pd.DataFrame, dem: Path, root: Path, res_m: float | No
     sf.setup_grid_from_region(region={"geom": region}, res=res, crs="utm", rotated=False, align=True)
     fmt = "%Y%m%d %H%M%S"
     sf.setup_config(tref=q.index[0].strftime(fmt), tstart=q.index[0].strftime(fmt), tstop=q.index[-1].strftime(fmt),
-                    dtmapout=6 * 3600, dthisout=3600, dtmaxout=int((q.index[-1] - q.index[0]).total_seconds()),
+                    dtmapout=map_every_s, dthisout=3600, dtmaxout=int((q.index[-1] - q.index[0]).total_seconds()),
                     storemaxwaterlevel=1, dtrstout=0)
     sf.setup_dep(datasets_dep=[{"elevtn": "fabdem"}])
     sf.setup_mask_active(zmin=-5.0, reset_mask=True, fill_area=10.0)
@@ -123,8 +125,11 @@ def run(root: Path, wsl_distro: str | None = None) -> None:
         if not done or not (out / "sfincs_map.nc").exists():
             raise RuntimeError(f"SFINCS did not finish: see {out / 'run_stdout.txt'}")
     else:
+        # Native binary if installed (Linux CI image), otherwise the Docker image (macOS: emulated amd64).
+        cmd = ["sfincs"] if shutil.which("sfincs") else [
+            "docker", "run", "--rm", "--platform", "linux/amd64", "-v", f"{root}:/data", "deltares/sfincs-cpu"]
         with (out / "run_stdout.txt").open("w") as log:
-            subprocess.run(["sfincs"], cwd=root, stdout=log)
+            subprocess.run(cmd, cwd=root, stdout=log, stderr=subprocess.STDOUT)
         if "Simulation finished" not in (out / "run_stdout.txt").read_text(errors="ignore"):
             raise RuntimeError(f"SFINCS did not finish: see {out / 'run_stdout.txt'}")
         for f in ("sfincs_map.nc", "sfincs_his.nc", "sfincs_log.txt"):
@@ -151,6 +156,31 @@ def depth30(root: Path, dem: Path, out_tif: Path, hmin: float = 0.05) -> Path:
     out_tif.parent.mkdir(parents=True, exist_ok=True)
     depth.rio.to_raster(out_tif, compress="deflate")
     return out_tif
+
+
+def depth30_daily(root: Path, dem: Path, out_dir: Path, days: pd.DatetimeIndex, hmin: float = 0.05) -> list[Path]:
+    """One 30 m depth map per day: the maximum of that day's water-level maps, downscaled like depth30."""
+    import rioxarray as rxr
+
+    root = root.resolve()
+    shutil.copy(root / "out" / "sfincs_map.nc", root / "sfincs_map.nc")
+    sf = SfincsModel(root=str(root), mode="r")
+    sf.read_results()
+    zs = sf.results["zs"]
+    d = rxr.open_rasterio(dem).squeeze(drop=True)
+    d = d.where(d > -9000).rio.reproject(zs.raster.crs, resolution=30.0)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    paths = []
+    for i, day in enumerate(days, start=1):
+        sel = zs.sel(time=slice(day, day + pd.Timedelta(hours=23, minutes=59)))
+        if sel.sizes["time"] == 0:
+            raise ValueError(f"no SFINCS map output on {day:%Y-%m-%d}")
+        depth = downscale_floodmap(zsmax=sel.max("time"), dep=d, hmin=hmin, nrmax=2000)
+        depth = depth.where(d > SEA_DEM_M, 0.0)
+        path = out_dir / f"depth_d{i:02d}.tif"
+        depth.rio.to_raster(path, compress="deflate")
+        paths.append(path)
+    return paths
 
 
 if __name__ == "__main__":
