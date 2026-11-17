@@ -73,7 +73,7 @@ def main() -> None:
                             "series": {c: [round(float(v), 1) for v in obs[c]] for c in obs.columns}}
     out = ROOT / "web" / "public" / "data" / "ibf" / "forecast"
     out.mkdir(parents=True, exist_ok=True)
-    gauges = gauge_products(fc_dir, cfg["scenarios"])
+    gauges = gauge_products(fc_dir, cfg["scenarios"], dom["inflow_reaches"])
     if gauges:
         (out / "gauges.json").write_text(json.dumps(gauges, separators=(",", ":")))
         manifest["has_gauges"] = True
@@ -82,9 +82,10 @@ def main() -> None:
     print(f"products in {out}")
 
 
-def gauge_products(fc_dir: Path, scenarios: list[str]) -> dict | None:
+def gauge_products(fc_dir: Path, scenarios: list[str], inflow_reaches: list[str]) -> dict | None:
     """Forecast discharge per gauge, scenario and day, with its return-period thresholds.
-    Gauges = the 10 forecast points + the virtual gauges (needs ops/thresholds_gauges.json)."""
+    Gauges = forecast points + virtual gauges of the basin the IbF domain drains (needs
+    ops/thresholds_gauges.json); gauges of other basins are left to the live map."""
     ops = ROOT / "pipeline" / "ops"
     if not (ops / "thresholds_gauges.json").exists() or not (fc_dir / "gauges_p50.csv").exists():
         print("no gauge thresholds yet: skipping gauges.json")
@@ -99,12 +100,15 @@ def gauge_products(fc_dir: Path, scenarios: list[str]) -> dict | None:
     meta += [{"id": f"g{f['properties']['id']}", "kind": "virtual", "name": f"Gauge {f['properties']['id']}",
               "basin": f["properties"]["basin"], "lonlat": f["geometry"]["coordinates"],
               "upa": f["properties"]["upstream_area_km2"], "thr": thr_g[str(f["properties"]["id"])]} for f in vg]
+    basins = {f["properties"]["basin"] for f in net if f["properties"]["id"] in inflow_reaches}
+    meta = [g for g in meta if g["basin"] in basins]
+    keep = {g["id"] for g in meta}
     q = {}
     for scen in scenarios:
         pts = pd.read_csv(fc_dir / f"{scen}.csv", index_col=0)
         gs = pd.read_csv(fc_dir / f"gauges_{scen}.csv", index_col=0)
-        q[scen] = {**{c: [round(float(v), 1) for v in pts[c]] for c in pts.columns},
-                   **{f"g{c}": [round(float(v), 1) for v in gs[c]] for c in gs.columns}}
+        q[scen] = {k: v for k, v in {**{c: [round(float(v), 1) for v in pts[c]] for c in pts.columns},
+                                     **{f"g{c}": [round(float(v), 1) for v in gs[c]] for c in gs.columns}}.items() if k in keep}
     return {"gauges": meta, "q": q}
 
 

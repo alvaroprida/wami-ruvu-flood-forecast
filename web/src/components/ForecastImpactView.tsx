@@ -463,10 +463,8 @@ function GaugeTimeline({ data, m, scen, day, onDay, palette: p }: {
   data: GaugeData; m: Manifest; scen: string; day: number; onDay: (d: number) => void; palette: Pal
 }) {
   const q = data.q[scen]
-  // Forecast points always; virtual gauges only if they reach the 2-year flow on some day. Downstream at the bottom.
-  const rows = data.gauges
-    .filter((g) => g.kind === 'point' || q[g.id]?.some((v) => v >= g.thr.rp2))
-    .sort((a, b) => a.basin.localeCompare(b.basin) || a.upa - b.upa)
+  // All gauges of the basin the flood model drains, smallest upstream area at the top, the outlet at the bottom.
+  const rows = [...data.gauges].sort((a, b) => a.upa - b.upa)
   const colors = [p.river, p['status-warning'], p['status-serious'], p['status-critical']]
   const cells = rows.flatMap((g, i) => (q[g.id] ?? []).map((v, d) => [d, i, levelOf(v, g.thr), v]))
   const option: EChartsOption = {
@@ -490,7 +488,8 @@ function GaugeTimeline({ data, m, scen, day, onDay, palette: p }: {
       <h2 className="text-base font-semibold text-ink">River gauges: when thresholds are reached</h2>
       <p className="mb-2 text-xs text-ink-3">
         Forecast discharge ({m.scenarios.find((s) => s.id === scen)!.label.toLowerCase()}) against each gauge's return-period flows from the
-        2001–2025 simulation. Forecast points and the virtual gauges that reach the 2-year flow; click a cell to show that day.
+        2001–2025 simulation, for the gauges of the basin the flood model covers. The 95th percentile is taken per gauge and
+        day, an upper envelope rather than one ensemble member. Click a cell to show that day.
       </p>
       <div className="mb-1 flex flex-wrap gap-3 text-xs text-ink-2">
         {LEVELS.map((l, i) => <span key={l.label} className="flex items-center gap-1"><i className="inline-block h-2.5 w-3 rounded-sm" style={{ background: colors[i] }} />{l.label}</span>)}
