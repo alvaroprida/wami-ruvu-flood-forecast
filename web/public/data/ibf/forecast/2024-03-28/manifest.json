@@ -1,0 +1,449 @@
+{
+ "kind": "forecast",
+ "issued": "2024-03-28T00:00Z",
+ "title": "Forecast issued 28 March 2024, lower Ruvu",
+ "description": "Impact-based forecast as it would have been issued: ECMWF ENS (50 members) through Wflow, median and 95th-percentile inflows through SFINCS, then exposure and vulnerability for every lead day.",
+ "days": [
+  "2024-03-28T00:00Z",
+  "2024-03-29T00:00Z",
+  "2024-03-30T00:00Z",
+  "2024-03-31T00:00Z",
+  "2024-04-01T00:00Z",
+  "2024-04-02T00:00Z",
+  "2024-04-03T00:00Z",
+  "2024-04-04T00:00Z",
+  "2024-04-05T00:00Z",
+  "2024-04-06T00:00Z",
+  "2024-04-07T00:00Z",
+  "2024-04-08T00:00Z",
+  "2024-04-09T00:00Z",
+  "2024-04-10T00:00Z",
+  "2024-04-11T00:00Z"
+ ],
+ "rain_mm": [
+  3.6,
+  6.3,
+  7.3,
+  8.4,
+  6.7,
+  9.1,
+  12.2,
+  13.6,
+  8.5,
+  8.9,
+  10.7,
+  9.8,
+  7.7,
+  7.1,
+  7.1
+ ],
+ "domain": {
+  "id": "ruvu_lower",
+  "name": "Ruvu Lower",
+  "bbox": [
+   38.45,
+   -7.08,
+   39.0,
+   -6.3
+  ]
+ },
+ "scenarios": [
+  {
+   "id": "p50",
+   "label": "Median forecast",
+   "dir": "p50",
+   "hydrograph": {
+    "ruvu_middle": [
+     58.2,
+     48.6,
+     42.1,
+     41.1,
+     73.7,
+     187.9,
+     253.5,
+     378.0,
+     634.6,
+     763.2,
+     800.3,
+     886.0,
+     846.6,
+     884.8,
+     904.2
+    ],
+    "ngerengere": [
+     11.2,
+     9.2,
+     8.6,
+     9.7,
+     14.3,
+     18.9,
+     22.6,
+     37.2,
+     53.9,
+     62.6,
+     65.8,
+     75.4,
+     121.3,
+     112.0,
+     100.4
+    ]
+   }
+  },
+  {
+   "id": "p95",
+   "label": "Severe case (95th percentile)",
+   "dir": "p95",
+   "hydrograph": {
+    "ruvu_middle": [
+     58.6,
+     50.0,
+     49.2,
+     96.7,
+     285.7,
+     580.6,
+     725.5,
+     1246.7,
+     1942.0,
+     1854.9,
+     1867.0,
+     2294.8,
+     2286.7,
+     2043.2,
+     1649.8
+    ],
+    "ngerengere": [
+     11.4,
+     11.0,
+     17.3,
+     28.7,
+     39.8,
+     49.6,
+     86.6,
+     183.2,
+     303.4,
+     258.8,
+     314.8,
+     317.2,
+     326.2,
+     268.8,
+     230.1
+    ]
+   }
+  }
+ ],
+ "observed": {
+  "times": [
+   "2024-03-21T00:00Z",
+   "2024-03-22T00:00Z",
+   "2024-03-23T00:00Z",
+   "2024-03-24T00:00Z",
+   "2024-03-25T00:00Z",
+   "2024-03-26T00:00Z",
+   "2024-03-27T00:00Z"
+  ],
+  "series": {
+   "ruvu_middle": [
+    43.6,
+    50.5,
+    51.8,
+    70.6,
+    67.8,
+    65.3,
+    74.6
+   ],
+   "ngerengere": [
+    11.2,
+    10.7,
+    11.0,
+    14.6,
+    18.1,
+    18.1,
+    15.5
+   ]
+  }
+ },
+ "has_gauges": true,
+ "corners": [
+  [
+   38.449126615249966,
+   -6.299710156805796
+  ],
+  [
+   39.00019661524997,
+   -6.299710156805796
+  ],
+  [
+   39.00019661524997,
+   -7.080550156805796
+  ],
+  [
+   38.449126615249966,
+   -7.080550156805796
+  ]
+ ],
+ "totals": {
+  "p50": [
+   {
+    "day": 1,
+    "people": 1547,
+    "buildings": 726,
+    "loss_equiv": 374.7,
+    "flooded_km2": 121.9,
+    "max_depth_m": 3.88
+   },
+   {
+    "day": 2,
+    "people": 1662,
+    "buildings": 795,
+    "loss_equiv": 408.1,
+    "flooded_km2": 121.6,
+    "max_depth_m": 3.88
+   },
+   {
+    "day": 3,
+    "people": 1666,
+    "buildings": 811,
+    "loss_equiv": 429.9,
+    "flooded_km2": 118.4,
+    "max_depth_m": 3.87
+   },
+   {
+    "day": 4,
+    "people": 1666,
+    "buildings": 825,
+    "loss_equiv": 443.6,
+    "flooded_km2": 116.1,
+    "max_depth_m": 3.85
+   },
+   {
+    "day": 5,
+    "people": 1751,
+    "buildings": 873,
+    "loss_equiv": 475.6,
+    "flooded_km2": 124.1,
+    "max_depth_m": 4.08
+   },
+   {
+    "day": 6,
+    "people": 2002,
+    "buildings": 918,
+    "loss_equiv": 514.4,
+    "flooded_km2": 144.2,
+    "max_depth_m": 4.28
+   },
+   {
+    "day": 7,
+    "people": 2492,
+    "buildings": 1062,
+    "loss_equiv": 610.3,
+    "flooded_km2": 171.1,
+    "max_depth_m": 4.45
+   },
+   {
+    "day": 8,
+    "people": 3001,
+    "buildings": 1237,
+    "loss_equiv": 780.7,
+    "flooded_km2": 200.1,
+    "max_depth_m": 4.66
+   },
+   {
+    "day": 9,
+    "people": 3608,
+    "buildings": 1428,
+    "loss_equiv": 1012.9,
+    "flooded_km2": 226.2,
+    "max_depth_m": 4.82
+   },
+   {
+    "day": 10,
+    "people": 3988,
+    "buildings": 1560,
+    "loss_equiv": 1172.7,
+    "flooded_km2": 242.2,
+    "max_depth_m": 4.88
+   },
+   {
+    "day": 11,
+    "people": 4157,
+    "buildings": 1611,
+    "loss_equiv": 1232.1,
+    "flooded_km2": 251.2,
+    "max_depth_m": 4.96
+   },
+   {
+    "day": 12,
+    "people": 4281,
+    "buildings": 1662,
+    "loss_equiv": 1277.2,
+    "flooded_km2": 256.4,
+    "max_depth_m": 4.97
+   },
+   {
+    "day": 13,
+    "people": 4327,
+    "buildings": 1679,
+    "loss_equiv": 1295.5,
+    "flooded_km2": 258.4,
+    "max_depth_m": 4.99
+   },
+   {
+    "day": 14,
+    "people": 4353,
+    "buildings": 1687,
+    "loss_equiv": 1306.6,
+    "flooded_km2": 259.5,
+    "max_depth_m": 5.0
+   },
+   {
+    "day": 15,
+    "people": 4351,
+    "buildings": 1690,
+    "loss_equiv": 1306.3,
+    "flooded_km2": 259.4,
+    "max_depth_m": 5.0
+   }
+  ],
+  "p95": [
+   {
+    "day": 1,
+    "people": 1548,
+    "buildings": 726,
+    "loss_equiv": 374.8,
+    "flooded_km2": 121.9,
+    "max_depth_m": 3.88
+   },
+   {
+    "day": 2,
+    "people": 1675,
+    "buildings": 804,
+    "loss_equiv": 410.8,
+    "flooded_km2": 122.2,
+    "max_depth_m": 3.88
+   },
+   {
+    "day": 3,
+    "people": 1756,
+    "buildings": 860,
+    "loss_equiv": 451.5,
+    "flooded_km2": 123.9,
+    "max_depth_m": 3.87
+   },
+   {
+    "day": 4,
+    "people": 1956,
+    "buildings": 928,
+    "loss_equiv": 506.8,
+    "flooded_km2": 138.3,
+    "max_depth_m": 4.31
+   },
+   {
+    "day": 5,
+    "people": 2452,
+    "buildings": 1047,
+    "loss_equiv": 605.2,
+    "flooded_km2": 168.3,
+    "max_depth_m": 4.61
+   },
+   {
+    "day": 6,
+    "people": 3236,
+    "buildings": 1309,
+    "loss_equiv": 836.1,
+    "flooded_km2": 211.6,
+    "max_depth_m": 4.79
+   },
+   {
+    "day": 7,
+    "people": 4026,
+    "buildings": 1571,
+    "loss_equiv": 1173.2,
+    "flooded_km2": 242.9,
+    "max_depth_m": 5.25
+   },
+   {
+    "day": 8,
+    "people": 4844,
+    "buildings": 1806,
+    "loss_equiv": 1475.2,
+    "flooded_km2": 272.3,
+    "max_depth_m": 5.76
+   },
+   {
+    "day": 9,
+    "people": 5481,
+    "buildings": 2075,
+    "loss_equiv": 1723.3,
+    "flooded_km2": 289.1,
+    "max_depth_m": 5.83
+   },
+   {
+    "day": 10,
+    "people": 5527,
+    "buildings": 2102,
+    "loss_equiv": 1752.7,
+    "flooded_km2": 291.7,
+    "max_depth_m": 5.79
+   },
+   {
+    "day": 11,
+    "people": 5605,
+    "buildings": 2131,
+    "loss_equiv": 1785.3,
+    "flooded_km2": 293.9,
+    "max_depth_m": 6.01
+   },
+   {
+    "day": 12,
+    "people": 5772,
+    "buildings": 2179,
+    "loss_equiv": 1861.1,
+    "flooded_km2": 297.2,
+    "max_depth_m": 6.04
+   },
+   {
+    "day": 13,
+    "people": 5789,
+    "buildings": 2180,
+    "loss_equiv": 1870.8,
+    "flooded_km2": 297.7,
+    "max_depth_m": 6.04
+   },
+   {
+    "day": 14,
+    "people": 5721,
+    "buildings": 2166,
+    "loss_equiv": 1844.7,
+    "flooded_km2": 295.9,
+    "max_depth_m": 5.89
+   },
+   {
+    "day": 15,
+    "people": 5503,
+    "buildings": 2105,
+    "loss_equiv": 1758.0,
+    "flooded_km2": 291.3,
+    "max_depth_m": 5.63
+   }
+  ]
+ },
+ "flood_depth_threshold_m": 0.1,
+ "depth_legend_m": [
+  0.1,
+  0.5,
+  1.0,
+  2.0
+ ],
+ "pop_legend_per_ha": [
+  1,
+  5,
+  15,
+  40
+ ],
+ "vulnerability": {
+  "source": "Englhardt et al. (2019), NHESS 19, 1703-1722",
+  "class": "I"
+ },
+ "buildings_in_domain": 182622,
+ "population_in_domain": 703033
+}
