@@ -4,9 +4,10 @@ Takes the p50 / p95 discharge forecast of hindcast_forecast.py for the domain's
 inflow reaches, runs SFINCS once per scenario with 3-hourly water-level maps
 (spun up on the observed-rainfall discharge of the week before the issue date),
 turns each lead day into a 30 m depth map and writes the per-day impact products
-(forecast_products.py) to web/public/data/ibf/forecast/.
+(forecast_products.py) to web/public/data/ibf/forecast/<issue>/, and lists the event in
+web/public/data/ibf/forecast/events.json (the site's event selector).
 
-    python pipeline/ibf/run_forecast_demo.py 2024-01-15 [--domain ruvu_lower] [--reuse]
+    python pipeline/ibf/run_forecast_demo.py 2024-01-03 --label "January 2024" [--reuse]
 
 Run with the hydromt-sfincs environment; SFINCS runs natively or in Docker.
 """
@@ -34,6 +35,7 @@ def main() -> None:
     ap.add_argument("--domain", default="ruvu_lower")
     ap.add_argument("--data-root", type=Path, default=Path(os.environ.get("WRFF_DATA_ROOT", ROOT / ".cache" / "data")))
     ap.add_argument("--reuse", action="store_true", help="skip SFINCS when a finished run exists")
+    ap.add_argument("--label", help="short event name for the site's selector, e.g. 'April 2024'")
     a = ap.parse_args()
     cfg = load_config()
     dom = cfg["domains"][a.domain]
@@ -71,18 +73,40 @@ def main() -> None:
     }
     manifest["observed"] = {"times": [t.strftime("%Y-%m-%dT%H:%MZ") for t in obs.index],
                             "series": {c: [round(float(v), 1) for v in obs[c]] for c in obs.columns}}
-    out = ROOT / "web" / "public" / "data" / "ibf" / "forecast"
+    root = ROOT / "web" / "public" / "data" / "ibf" / "forecast"
+    out = root / a.issue
     out.mkdir(parents=True, exist_ok=True)
-    gauges = gauge_products(fc_dir, cfg["scenarios"], dom["inflow_reaches"])
+    domain_rivers(dom["bbox"], a.data_root, root / "rivers.geojson")
+    gauges = gauge_products(fc_dir, cfg["scenarios"], dom["inflow_reaches"], a.data_root, obs.index[0], days[-1])
     if gauges:
         (out / "gauges.json").write_text(json.dumps(gauges, separators=(",", ":")))
         manifest["has_gauges"] = True
     forecast_products.build(depths, exp / f"exposure_{a.domain}.parquet", exp / f"buildings_{a.domain}.parquet",
                             exp / f"population_{a.domain}.tif", exp / f"admin_{a.domain}.geojson", out, manifest)
+    events_path = root / "events.json"
+    events = json.loads(events_path.read_text()) if events_path.exists() else []
+    events = [e for e in events if e["id"] != a.issue] + [{
+        "id": a.issue, "label": a.label or pd.Timestamp(a.issue).strftime("%B %Y"), "issued": manifest["issued"],
+        "title": manifest["title"]}]
+    events_path.write_text(json.dumps(sorted(events, key=lambda e: e["id"]), indent=1))
     print(f"products in {out}")
 
 
-def gauge_products(fc_dir: Path, scenarios: list[str], inflow_reaches: list[str]) -> dict | None:
+def domain_rivers(bbox, data_root: Path, out: Path, min_upa_km2: float = 20) -> None:
+    """River centrelines of the model's flow network (FABDEM-derived) inside the flood domain."""
+    import geopandas as gpd
+    from shapely.geometry import box
+
+    r = gpd.read_file(data_root / "static" / "rivers.gpkg")
+    r = gpd.clip(r[r["uparea"] >= min_upa_km2], box(*bbox))
+    r = r[r.geom_type.isin(["LineString", "MultiLineString"])]
+    r["geometry"] = r.geometry.simplify(0.0003)
+    r["uparea"] = r["uparea"].round().astype(int)
+    r[["uparea", "geometry"]].to_file(out, driver="GeoJSON", COORDINATE_PRECISION=5)
+
+
+def gauge_products(fc_dir: Path, scenarios: list[str], inflow_reaches: list[str], data_root: Path,
+                   t0: pd.Timestamp, t1: pd.Timestamp) -> dict | None:
     """Forecast discharge per gauge, scenario and day, with its return-period thresholds.
     Gauges = forecast points + virtual gauges of the basin the IbF domain drains (needs
     ops/thresholds_gauges.json); gauges of other basins are left to the live map."""
@@ -109,7 +133,20 @@ def gauge_products(fc_dir: Path, scenarios: list[str], inflow_reaches: list[str]
         gs = pd.read_csv(fc_dir / f"gauges_{scen}.csv", index_col=0)
         q[scen] = {k: v for k, v in {**{c: [round(float(v), 1) for v in pts[c]] for c in pts.columns},
                                      **{f"g{c}": [round(float(v), 1) for v in gs[c]] for c in gs.columns}}.items() if k in keep}
-    return {"gauges": meta, "q": q}
+    # Full hydrographs for the site: forecast spread per gauge, and the discharge simulated on observed
+    # (CHIRPS) rainfall over the spin-up week + forecast window, for comparison.
+    spread = {}
+    for qn in ("p05", "p25", "p50", "p75", "p95"):
+        pts = pd.read_csv(fc_dir / f"{qn}.csv", index_col=0)
+        gs = pd.read_csv(fc_dir / f"gauges_{qn}.csv", index_col=0)
+        spread[qn] = {**{c: [round(float(x), 1) for x in pts[c]] for c in pts.columns if c in keep},
+                      **{f"g{c}": [round(float(x), 1) for x in gs[c]] for c in gs.columns if f"g{c}" in keep}}
+    hp = pd.read_csv(data_root / "products" / "historical_q.csv", index_col=0, parse_dates=True).loc[t0:t1]
+    hg = pd.read_csv(data_root / "products" / "historical_q_gauges.csv", index_col=0, parse_dates=True).loc[t0:t1]
+    reference = {"times": [t.strftime("%Y-%m-%dT%H:%MZ") for t in hp.index],
+                 "q": {**{c: [round(float(x), 1) for x in hp[c]] for c in hp.columns if c in keep},
+                       **{f"g{c}": [round(float(x), 1) for x in hg[c]] for c in hg.columns if f"g{c}" in keep}}}
+    return {"gauges": meta, "q": q, "spread": spread, "reference": reference}
 
 
 if __name__ == "__main__":

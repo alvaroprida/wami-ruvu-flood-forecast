@@ -102,11 +102,12 @@ def main() -> None:
     members = pd.concat(rows)
     members.to_csv(out / "members.csv", index=False, float_format="%.2f")
     wide = members.pivot_table(index=["time", "member"], columns="reach", values="q")
-    for qname, qv in (("p50", 0.5), ("p95", 0.95)):
+    quantiles = (("p05", 0.05), ("p25", 0.25), ("p50", 0.5), ("p75", 0.75), ("p95", 0.95))  # p50/p95 drive SFINCS
+    for qname, qv in quantiles:
         wide.groupby(level="time").quantile(qv).to_csv(out / f"{qname}.csv", float_format="%.2f")
     if grows:
         gw = pd.concat(grows).pivot_table(index=["time", "member"], columns="gauge", values="q")
-        for qname, qv in (("p50", 0.5), ("p95", 0.95)):
+        for qname, qv in quantiles:
             gw.groupby(level="time").quantile(qv).to_csv(out / f"gauges_{qname}.csv", float_format="%.2f")
     rain = precip.mean(("lat", "lon")).median("number").to_series()
     rain.to_csv(out / "rain.csv", float_format="%.2f")

@@ -26,6 +26,7 @@ from common import WEB_DATA, log, paths  # noqa: E402
 MIN_UPA_KM2 = 1000
 SPACING_KM = 20
 GAUGE_MAP = "gauges_virtual"
+SITE_BASINS = ["Ruvu"]
 
 
 def main() -> None:
@@ -69,7 +70,9 @@ def main() -> None:
         rows.append({"id": gid, "upstream_area_km2": int(round(float(upa.values[i, j]))),
                      "basin": near["basin"], "reach": near["id"] if d.min() < 2000 else None,
                      "geometry": Point(round(float(xx[i, j]), 5), round(float(yy[i, j]), 5))})
-    gpd.GeoDataFrame(rows, crs=4326).to_file(WEB_DATA / "gauges.geojson", driver="GeoJSON")
+    # The model writes all gauges; the site shows the Ruvu basin's only (the IbF case study).
+    site = gpd.GeoDataFrame(rows, crs=4326)
+    site[site["basin"].isin(SITE_BASINS)].to_file(WEB_DATA / "gauges.geojson", driver="GeoJSON")
     log.info("%d virtual gauges (>= %d km2, >= %d km apart) added as %s", len(chosen), MIN_UPA_KM2, SPACING_KM, GAUGE_MAP)
 
 

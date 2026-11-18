@@ -14,8 +14,22 @@ setWorkerUrl(workerUrl)
 const protocol = new Protocol()
 addProtocol('pmtiles', protocol.tile)
 
-const DATA = `${import.meta.env.BASE_URL}data/ibf/forecast`
-const ABS = (p: string) => new URL(`${DATA}/${p}`, location.href).href
+const ROOT = `${import.meta.env.BASE_URL}data/ibf/forecast`
+interface EventInfo { id: string; label: string; issued: string; title: string }
+
+/** Event selector + the view of one replayed forecast (products in data/ibf/forecast/<event id>/). */
+export function ForecastImpactView() {
+  const [events, setEvents] = useState<EventInfo[]>()
+  const [eventId, setEventId] = useState<string>()
+  useEffect(() => {
+    fetch(`${ROOT}/events.json`).then((r) => r.json()).then((e: EventInfo[]) => {
+      setEvents(e)
+      setEventId(e[0]?.id)
+    })
+  }, [])
+  if (!events || !eventId) return <div className="p-8 text-ink-3">Loading forecast impact…</div>
+  return <EventView key={eventId} DATA={`${ROOT}/${eventId}`} events={events} eventId={eventId} onEvent={setEventId} />
+}
 const SCEN_COLORS: Record<string, string> = { p50: '#2a78d6', p95: '#eb6834' }   // categorical slots 1-2
 
 interface Total { day: number; people: number; buildings: number; loss_equiv: number; flooded_km2: number; max_depth_m: number }
@@ -28,14 +42,17 @@ interface Manifest {
   observed?: { times: string[]; series: Record<string, number[]> }
   vulnerability: { source: string; class: string }; buildings_in_domain: number; population_in_domain: number
 }
-type Show = { depth: boolean; popHit: boolean; popAll: boolean; buildings: boolean; wards: boolean; gauges: boolean }
+type Show = { depth: boolean; popHit: boolean; popAll: boolean; buildings: boolean; wards: boolean; gauges: boolean; rivers: boolean }
 interface WardGeo {
   type: 'FeatureCollection'
   features: { type: 'Feature'; properties: Record<string, unknown>; geometry: unknown }[]
 }
 interface Gauge { id: string; kind: 'point' | 'virtual'; name: string; basin: string; lonlat: [number, number]; upa: number
   thr: { rp2: number; rp5: number; rp20: number; rp50: number } }
-interface GaugeData { gauges: Gauge[]; q: Record<string, Record<string, number[]>> }
+interface GaugeData {
+  gauges: Gauge[]; q: Record<string, Record<string, number[]>>
+  spread?: Record<string, Record<string, number[]>>; reference?: { times: string[]; q: Record<string, number[]> }
+}
 const LEVELS = [
   { label: 'Below 2-year flow', color: 'var(--river)' },
   { label: '2-year flow', color: 'var(--status-warning)' },
@@ -55,8 +72,10 @@ const METRIC: Record<Metric, { label: string; steps: number[] }> = {
 const fmt = (v: number) => Math.round(v).toLocaleString('en-GB')
 const pad = (d: number) => String(d).padStart(2, '0')
 
-export function ForecastImpactView() {
+function EventView({ DATA, events, eventId, onEvent }: { DATA: string; events: EventInfo[]; eventId: string; onEvent: (id: string) => void }) {
+  const ABS = (p: string) => new URL(`${DATA}/${p}`, location.href).href
   const { palette, dark } = usePalette()
+  const [selGauge, setSelGauge] = useState<string | null>(null)
   const [m, setM] = useState<Manifest>()
   const [wardData, setWardData] = useState<{ wards: Ward[]; rows: WardRow[] }>()
   const [admin, setAdmin] = useState<WardGeo>()
@@ -66,7 +85,7 @@ export function ForecastImpactView() {
   const [metric, setMetric] = useState<Metric>('people')
   const [playing, setPlaying] = useState(false)
   const [basemap, setBasemap] = useState<Basemap>(dark ? 'dark' : 'light')
-  const [show, setShow] = useState<Show>({ depth: true, popHit: true, popAll: true, buildings: true, wards: true, gauges: true })
+  const [show, setShow] = useState<Show>({ depth: true, popHit: true, popAll: true, buildings: true, wards: true, gauges: true, rivers: true })
   const [hover, setHover] = useState<{ lng: number; lat: number; kind: 'b' | 'w' | 'g'; p: Record<string, unknown> } | null>(null)
   const [selWard, setSelWard] = useState<number | null>(null)
 
@@ -130,6 +149,15 @@ export function ForecastImpactView() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-4 p-4 md:p-6">
+      <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Event">
+        <span className="text-sm text-ink-2">Event</span>
+        {events.map((ev) => (
+          <button key={ev.id} role="radio" aria-checked={ev.id === eventId} onClick={() => onEvent(ev.id)}
+            className={`rounded-full border px-3 py-1 text-sm ${ev.id === eventId ? 'border-ink bg-ink text-surface' : 'border-line text-ink-2 hover:text-ink'}`}>
+            {ev.label} <span className="opacity-70">· issued {formatDay(ev.issued)}</span>
+          </button>
+        ))}
+      </div>
       <header>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{m.title}</h1>
         <p className="max-w-4xl text-sm text-ink-2">{m.description}</p>
@@ -213,6 +241,11 @@ export function ForecastImpactView() {
                 <Layer id="pop-hit" type="raster" paint={{ 'raster-opacity': 0.7, 'raster-resampling': 'nearest' }} />
               </Source>
             )}
+            <Source id="domain-rivers" type="geojson" data={`${ROOT}/rivers.geojson`}>
+              <Layer id="domain-rivers" type="line" layout={{ visibility: show.rivers ? 'visible' : 'none', 'line-cap': 'round', 'line-join': 'round' }}
+                paint={{ 'line-color': '#08306b', 'line-opacity': 0.8,
+                  'line-width': ['interpolate', ['linear'], ['get', 'uparea'], 20, 0.5, 1000, 1.5, 15000, 3] as unknown as number }} />
+            </Source>
             <Source id="buildings" type="vector" url={`pmtiles://${ABS('buildings.pmtiles')}`}>
               <Layer id="bld-all" type="fill" source-layer="buildings" minzoom={12} layout={{ visibility: show.buildings ? 'visible' : 'none' }}
                 paint={{ 'fill-color': palette['text-muted'], 'fill-opacity': 0.55, 'fill-outline-color': palette['text-secondary'] }} />
@@ -265,7 +298,8 @@ export function ForecastImpactView() {
 
       <WardHeatmap m={m} rows={wardData.rows} wards={wardData.wards} scen={scen} metric={metric} day={day}
         onPick={(d, id) => { setDay(d); setSelWard(id) }} palette={palette} />
-      {gaugeData && <GaugeTimeline data={gaugeData} m={m} scen={scen} day={day} onDay={setDay} palette={palette} />}
+      {gaugeData && <GaugeTimeline data={gaugeData} m={m} scen={scen} day={day} onPick={(d, g) => { setDay(d); setSelGauge(g) }} palette={palette} />}
+      {gaugeData && selGauge && <GaugeHydrograph data={gaugeData} m={m} id={selGauge} onClose={() => setSelGauge(null)} palette={palette} />}
       <WardTable wards={wardData.wards} dayRows={dayRows} selWard={selWard} onSelect={setSelWard} day={day} />
     </div>
   )
@@ -296,6 +330,7 @@ function MapLegend({ m, show, setShow, basemap, setBasemap, metric }: {
       {ramp(POP_COLORS, m.pop_legend_per_ha.map(String))}
       {row('popAll', 'All population (grey, reference)')}
       {row('wards', `Wards: ${METRIC[metric].label.toLowerCase()}`)}
+      {row('rivers', 'River centrelines (model network)')}
       {row('gauges', 'River gauges: threshold reached')}
       <div className="flex flex-wrap gap-x-2 gap-y-0.5">
         {LEVELS.map((l) => <span key={l.label} className="flex items-center gap-1 text-[10px] text-ink-3"><i className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: l.color }} />{l.label}</span>)}
@@ -459,8 +494,8 @@ function WardTable({ wards, dayRows, selWard, onSelect, day }: {
   )
 }
 
-function GaugeTimeline({ data, m, scen, day, onDay, palette: p }: {
-  data: GaugeData; m: Manifest; scen: string; day: number; onDay: (d: number) => void; palette: Pal
+function GaugeTimeline({ data, m, scen, day, onPick, palette: p }: {
+  data: GaugeData; m: Manifest; scen: string; day: number; onPick: (d: number, id: string) => void; palette: Pal
 }) {
   const q = data.q[scen]
   // All gauges of the basin the flood model drains, smallest upstream area at the top, the outlet at the bottom.
@@ -489,12 +524,71 @@ function GaugeTimeline({ data, m, scen, day, onDay, palette: p }: {
       <p className="mb-2 text-xs text-ink-3">
         Forecast discharge ({m.scenarios.find((s) => s.id === scen)!.label.toLowerCase()}) against each gauge's return-period flows from the
         2001–2025 simulation, for the gauges of the basin the flood model covers. The 95th percentile is taken per gauge and
-        day, an upper envelope rather than one ensemble member. Click a cell to show that day.
+        day, an upper envelope rather than one ensemble member. Click a cell to show that day and the gauge's hydrograph.
       </p>
       <div className="mb-1 flex flex-wrap gap-3 text-xs text-ink-2">
         {LEVELS.map((l, i) => <span key={l.label} className="flex items-center gap-1"><i className="inline-block h-2.5 w-3 rounded-sm" style={{ background: colors[i] }} />{l.label}</span>)}
       </div>
-      <ReactECharts option={option} style={{ height: 22 * rows.length + 60 }} notMerge onEvents={{ click: (e: { value: number[] }) => onDay(e.value[0] + 1) }} />
+      <ReactECharts option={option} style={{ height: 22 * rows.length + 60 }} notMerge onEvents={{ click: (e: { value: number[] }) => onPick(e.value[0] + 1, rows[e.value[1]].id) }} />
+    </section>
+  )
+}
+
+function GaugeHydrograph({ data, m, id, onClose, palette: p }: { data: GaugeData; m: Manifest; id: string; onClose: () => void; palette: Pal }) {
+  const g = data.gauges.find((x) => x.id === id)!
+  const ref = data.reference
+  // One time axis: spin-up week + forecast window (the reference covers both).
+  const times = ref?.times ?? m.days
+  const idx = Object.fromEntries(m.days.map((t, i) => [t.slice(0, 10), i]))
+  const fc = (qn: string) => times.map((t) => { const i = idx[t.slice(0, 10)]; return i === undefined ? null : data.spread?.[qn]?.[id]?.[i] ?? null })
+  const band = (lo: string, hi: string) => times.map((t) => {
+    const i = idx[t.slice(0, 10)]
+    const a = data.spread?.[lo]?.[id]?.[i], b = data.spread?.[hi]?.[id]?.[i]
+    return i === undefined || a === undefined || b === undefined ? null : +(b - a).toFixed(1)
+  })
+  const issueIdx = times.findIndex((t) => t.slice(0, 10) === m.days[0].slice(0, 10))
+  const thr = [['rp2', '2-yr', p['status-warning']], ['rp5', '5-yr', p['status-serious']], ['rp20', '20-yr', p['status-critical']]] as const
+  const stackArea = (name: string, lo: string, hi: string, opacity: number) => [
+    { type: 'line' as const, name, stack: name, data: fc(lo), symbol: 'none', lineStyle: { opacity: 0 }, silent: true, color: p['series-1'] },
+    { type: 'line' as const, name, stack: name, data: band(lo, hi), symbol: 'none', lineStyle: { opacity: 0 }, silent: true,
+      color: p['series-1'], areaStyle: { color: p['series-1'], opacity } },
+  ]
+  const option: EChartsOption = {
+    animation: false,
+    grid: { left: 64, right: 56, top: 52, bottom: 28 },
+    legend: { left: 0, top: 0, textStyle: { color: p['text-secondary'], fontSize: 11 }, itemWidth: 16, itemHeight: 8,
+      data: ['Simulated on observed rainfall', 'Forecast median',
+        { name: '50% range', icon: 'roundRect', itemStyle: { opacity: 0.45 } },
+        { name: '90% range', icon: 'roundRect', itemStyle: { opacity: 0.2 } }] },
+    tooltip: { trigger: 'axis', ...tip(p), valueFormatter: (v) => (v == null ? '–' : `${fmt(Number(v))} m³/s`) },
+    xAxis: { type: 'category', data: times.map((t) => formatDay(t)), ...axisStyle(p), axisLabel: { color: p['text-muted'], interval: 2 } },
+    yAxis: { type: 'value', name: 'm³/s', ...axisStyle(p), axisLine: { show: false }, nameTextStyle: { color: p['text-muted'] },
+      max: (v: { max: number }) => Math.max(v.max, g.thr.rp2 * 1.1) },
+    series: [
+      ...stackArea('90% range', 'p05', 'p95', 0.12),
+      ...stackArea('50% range', 'p25', 'p75', 0.25),
+      { type: 'line', name: 'Forecast median', data: fc('p50'), symbol: 'none', color: p['series-1'], lineStyle: { width: 2 },
+        markLine: { silent: true, symbol: 'none', data: [
+          ...(issueIdx >= 0 ? [{ xAxis: issueIdx, lineStyle: { color: p['text-muted'], type: 'solid' as const }, label: { formatter: 'issued', color: p['text-muted'], fontSize: 10 } }] : []),
+          ...thr.map(([k, label, color]) => ({ yAxis: g.thr[k], lineStyle: { color, width: 1.5, type: 'solid' as const },
+            label: { formatter: label, position: 'end' as const, color: p['text-secondary'], fontSize: 10 } })),
+        ] } },
+      ...(ref ? [{ type: 'line' as const, name: 'Simulated on observed rainfall', data: ref.q[id] ?? [], symbol: 'none',
+        color: p.history, lineStyle: { width: 2 } }] : []),
+    ],
+  }
+  return (
+    <section className="rounded-xl border border-line bg-surface p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-base font-semibold text-ink">{g.name} · {g.basin} · {fmt(g.upa)} km² upstream</h2>
+          <p className="text-xs text-ink-3">Forecast issued {formatDay(m.issued)} (median and ensemble ranges) against the discharge simulated on observed
+            CHIRPS rainfall, with the gauge's return-period flows (2-year flow always in view; 5-year {fmt(g.thr.rp5)} and 20-year {fmt(g.thr.rp20)} m³/s
+            are drawn only when the flows reach that range).</p>
+        </div>
+        <button onClick={onClose} className="rounded-full border border-line px-3 py-1 text-sm text-ink-2 hover:text-ink">Close</button>
+      </div>
+      <ReactECharts option={option} style={{ height: 300 }} notMerge />
     </section>
   )
 }
